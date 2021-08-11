@@ -37,6 +37,12 @@
     <Filter Include="Source Files\Lumen\Utils">
       <UniqueIdentifier>{f2524e36-e85c-4168-a3fa-719d857b6008}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Lumen\Lumen-Core">
+      <UniqueIdentifier>{49017ff4-3c91-4ad9-ac54-89cdbef769f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Lumen\Lumen-Core\Lumen-Shaders">
+      <UniqueIdentifier>{e98655fb-fe9b-49c6-aeb4-aaf8dca40331}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\imgui\imconfig.h">
@@ -120,6 +126,27 @@
     <ClInclude Include="Core\Utils\Timer.h">
       <Filter>Source Files\Lumen\Utils</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Mesh.h">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\ModelFileLoader.h">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Utils\Vertex.h">
+      <Filter>Source Files\Lumen\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Object.h">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Pipeline.h">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\ModelRenderer.h">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Entity.h">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Dependencies\imgui\imgui.cpp">
@@ -197,5 +224,34 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files\Lumen</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Mesh.cpp">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\ModelFileLoader.cpp">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Object.cpp">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Pipeline.cpp">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\ModelRenderer.cpp">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Core\Shaders\BasicFrag.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\BasicVert.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\FBOFrag.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\FBOVert.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

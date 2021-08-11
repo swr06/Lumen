@@ -16,7 +16,7 @@ namespace GLClasses
 
 	std::unordered_map<std::string, TextureMapData> CreatedTextures;
 
-	void Texture::CreateTexture(const string& path, bool hdr, bool flip, GLenum type, GLenum min_filter, GLenum mag_filter, GLenum texwrap_s, GLenum texwrap_t, bool clean_up)
+	void Texture::CreateTexture(const string& path, bool hdr, bool mipmap, bool flip, GLenum type, GLenum min_filter, GLenum mag_filter, GLenum texwrap_s, GLenum texwrap_t, bool clean_up)
 	{
 		/*
 		Check if the texture is already created, if it is, then use the existing texture. Else create a new one :)
@@ -43,7 +43,7 @@ namespace GLClasses
 			glTexParameteri(type, GL_TEXTURE_WRAP_S, texwrap_s);
 			glTexParameteri(type, GL_TEXTURE_WRAP_T, texwrap_t);
 
-			glTexParameteri(type, GL_TEXTURE_MIN_FILTER, min_filter);
+			glTexParameteri(type, GL_TEXTURE_MIN_FILTER, mipmap ? GL_LINEAR_MIPMAP_LINEAR : min_filter);
 			glTexParameteri(type, GL_TEXTURE_MAG_FILTER, mag_filter);
 
 			unsigned char* image = stbi_load(path.c_str(), &m_width, &m_height, &m_BPP, 0);
@@ -84,7 +84,11 @@ namespace GLClasses
 				}
 
 				glTexImage2D(type, 0, _internalformat, m_width, m_height, 0, internalformat, GL_UNSIGNED_BYTE, image);
-				//glGenerateMipmap(type);
+				
+				if (mipmap)
+				{
+					glGenerateMipmap(type);
+				}
 
 				if (clean_up)
 				{
