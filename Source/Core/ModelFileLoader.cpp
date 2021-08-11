@@ -112,12 +112,12 @@ namespace Lumen
 						vt.tangent.z = mesh->mTangents[i].z;
 					}
 
-					if (mesh->mBitangents)
-					{
-						vt.bitangent.x = mesh->mBitangents[i].x;
-						vt.bitangent.y = mesh->mBitangents[i].y;
-						vt.bitangent.z = mesh->mBitangents[i].z;
-					}
+					//if (mesh->mBitangents)
+					//{
+					//	vt.bitangent.x = mesh->mBitangents[i].x;
+					//	vt.bitangent.y = mesh->mBitangents[i].y;
+					//	vt.bitangent.z = mesh->mBitangents[i].z;
+					//}
 				}
 
 				else

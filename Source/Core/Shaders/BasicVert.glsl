@@ -4,10 +4,8 @@ layout (location = 0) in vec3 a_Position;
 layout (location = 1) in vec3 a_Normal;
 layout (location = 2) in vec2 a_TexCoords;
 layout (location = 3) in vec3 a_Tangent;
-layout (location = 4) in vec3 a_Bitangent;
-
-layout (location = 5) in uint a_TexID;
-layout (location = 6) in uint a_TexID2;
+layout (location = 4) in uint a_TexID;
+layout (location = 5) in uint a_TexID2;
 
 uniform mat4 u_ModelMatrix;
 uniform mat3 u_NormalMatrix;
@@ -31,8 +29,8 @@ void main()
 	v_Normal = mat3(u_NormalMatrix) * a_Normal;  
 
 	vec3 T = (vec3(u_ModelMatrix * vec4(a_Tangent, 0.0)));
-	vec3 B = (vec3(u_ModelMatrix * vec4(a_Bitangent, 0.0)));
 	vec3 N = (vec3(u_ModelMatrix * vec4(a_Normal, 0.0)));
+	vec3 B = (vec3(u_ModelMatrix * vec4(cross(N, T), 0.0)));
 	v_TBNMatrix = mat3(T, B, N);
 
 	v_TexID = a_TexID;
