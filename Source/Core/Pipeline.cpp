@@ -65,6 +65,10 @@ public:
 		{
 			Camera.SetAspect((float)e.wx / (float)e.wy);
 		}
+
+		if (e.type == Lumen::EventTypes::KeyPress && e.key == GLFW_KEY_ESCAPE) {
+			exit(0);
+		}
 	}
 
 
@@ -99,7 +103,7 @@ void Lumen::StartPipeline()
 	ScreenQuadVBO.VertexAttribPointer(1, 2, GL_FLOAT, 0, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
 	ScreenQuadVAO.Unbind();
 
-	app.SetCursorLocked(false);
+	app.SetCursorLocked(true);
 
 	Object Sponza;
 	FileLoader::LoadModelFile(&Sponza, "Models/sponza-pbr/Sponza.gltf");
