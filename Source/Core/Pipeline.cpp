@@ -120,8 +120,10 @@ void Lumen::StartPipeline()
 		MeshShader.SetInteger("u_AlbedoMap", 0);
 		MeshShader.SetInteger("u_NormalMap", 1);
 		RenderEntity(MainModel, MeshShader);
-		app.FinishFrame();
 
+		glFinish();
+		app.FinishFrame();
 		GLClasses::DisplayFrameRate(app.GetWindow(), "Lumen ");
+
 	}
 }
