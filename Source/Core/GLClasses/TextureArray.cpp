@@ -50,15 +50,9 @@ namespace GLClasses
 			
 			image = stbi_load(paths[i].c_str(), &w, &h, &bpp, 4);
 
-
-
-
-
-
-
 			if (image)
 			{
-				glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, texture_size.first-1, texture_size.second-1,
+				glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, w, h,
 					1, GL_RGBA, GL_UNSIGNED_BYTE, image);
 
 				m_TextureLocations[paths[i]] = i;

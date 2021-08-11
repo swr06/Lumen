@@ -6,6 +6,7 @@
 #include "Entity.h"
 #include "ModelFileLoader.h"
 #include "ModelRenderer.h"
+#include "GLClasses/Fps.h"
 
 Lumen::FPSCamera Camera(90.0f, 800.0f / 600.0f);
 
@@ -111,14 +112,16 @@ void Lumen::StartPipeline()
 	{
 		app.OnUpdate();
 
-		glDisable(GL_CULL_FACE);
+		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
 
 		MeshShader.Use();
 		MeshShader.SetMatrix4("u_ViewProjection", Camera.GetViewProjection());
 		MeshShader.SetInteger("u_AlbedoMap", 0);
+		MeshShader.SetInteger("u_NormalMap", 1);
 		RenderEntity(MainModel, MeshShader);
-
 		app.FinishFrame();
+
+		GLClasses::DisplayFrameRate(app.GetWindow(), "Lumen ");
 	}
 }

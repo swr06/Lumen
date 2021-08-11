@@ -21,7 +21,6 @@ uniform sampler2DArray u_AOMap;
 void main()
 {
 	uint AlbedoIDX = v_TexID & 0xFF;
-
+	uint NormalIDX = (v_TexID >> 8) & 0xFF;
 	o_Color = texture(u_AlbedoMap, vec3(v_TexCoords, float(AlbedoIDX))).xyz;
-	o_Color = vec3(v_TexCoords, 0.0f);
 }
