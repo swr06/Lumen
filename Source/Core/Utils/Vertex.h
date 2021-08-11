@@ -19,5 +19,7 @@ namespace Lumen
 		glm::vec2 tex_coords;
 		glm::vec3 tangent;
 		glm::vec3 bitangent;
+		uint16_t TEXID1;
+		uint16_t TEXID2;
 	};
 }

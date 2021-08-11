@@ -10,11 +10,15 @@ namespace Lumen
 		m_VertexArray.Bind();
 		m_VertexBuffer.Bind();
 		m_IndexBuffer.Bind();
+
 		m_VertexBuffer.VertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(Vertex), (void*)(offsetof(Vertex, position)));
 		m_VertexBuffer.VertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(Vertex), (void*)(offsetof(Vertex, normals)));
 		m_VertexBuffer.VertexAttribPointer(2, 2, GL_FLOAT, 0, sizeof(Vertex), (void*)(offsetof(Vertex, tex_coords)));
 		m_VertexBuffer.VertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(Vertex), (void*)(offsetof(Vertex, tangent)));
 		m_VertexBuffer.VertexAttribPointer(4, 3, GL_FLOAT, 0, sizeof(Vertex), (void*)(offsetof(Vertex, bitangent)));
+		m_VertexBuffer.VertexAttribIPointer(5, 1, GL_UNSIGNED_SHORT, sizeof(Vertex), (void*)(offsetof(Vertex, TEXID1)));
+		m_VertexBuffer.VertexAttribIPointer(6, 1, GL_UNSIGNED_SHORT, sizeof(Vertex), (void*)(offsetof(Vertex, TEXID2)));
+
 		m_VertexArray.Unbind();
 	}
 

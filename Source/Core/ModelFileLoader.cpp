@@ -6,9 +6,12 @@
 #include <assimp/postprocess.h>
 #include <chrono>
 
+#include "MeshOptimizer.h"
 #include <string>
 #include <vector>
 #include <array>
+
+#define PACK_U16(lsb, msb) ((uint16_t) ( ((uint16_t)(lsb) & 0xFF) | (((uint16_t)(msb) & 0xFF) << 8) ))
 
 /* Model Loader
 Uses the assimp model loading library to load the models. It uses a recursive model to process the meshes and materials
@@ -32,43 +35,42 @@ namespace Lumen
 			aiString roughness_texture;
 			aiString metallic_texture;
 			aiString ao_texture;
-
 			_mesh->m_IsGLTF = is_gltf;
 
 			if (mat->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &diffuse_texture) == aiReturn_SUCCESS)
 			{
 				std::string pth = texture_path + "/" + diffuse_texture.C_Str();
-				_mesh->m_AlbedoMap.CreateTexture(pth.c_str(), true, true);
+				_mesh->TexturePaths[0] = pth;
 			}
 
 			else if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &diffuse_texture) == aiReturn_SUCCESS)
 			{
 				std::string pth = texture_path + "/" + diffuse_texture.C_Str();
-				_mesh->m_AlbedoMap.CreateTexture(pth.c_str(), true, true);
+				_mesh->TexturePaths[0] = pth;
 			}
 
 			if (mat->GetTexture(aiTextureType_NORMALS, 0, &normal_texture) == aiReturn_SUCCESS)
 			{
 				std::string pth = texture_path + "/" + normal_texture.C_Str();
-				_mesh->m_NormalMap.CreateTexture(pth.c_str(), false, true);
+				_mesh->TexturePaths[1] = pth;
 			}
 
 			if (mat->GetTexture(aiTextureType_METALNESS, 0, &metallic_texture) == aiReturn_SUCCESS)
 			{
 				std::string pth = texture_path + "/" + metallic_texture.C_Str();
-				_mesh->m_MetalnessMap.CreateTexture(pth.c_str(), false, true);
+				_mesh->TexturePaths[3] = pth;
 			}
 
 			if (mat->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &roughness_texture) == aiReturn_SUCCESS)
 			{
 				std::string pth = texture_path + "/" + roughness_texture.C_Str();
-				_mesh->m_RoughnessMap.CreateTexture(pth.c_str(), false, true);
+				_mesh->TexturePaths[2] = pth;
 			}
 
 			if (mat->GetTexture(aiTextureType_AMBIENT_OCCLUSION, 0, &ao_texture) == aiReturn_SUCCESS)
 			{
 				std::string pth = texture_path + "/" + ao_texture.C_Str();
-				_mesh->m_AmbientOcclusionMap.CreateTexture(pth.c_str(), false, true);
+				_mesh->TexturePaths[4] = pth;
 			}
 		}
 
@@ -222,6 +224,7 @@ namespace Lumen
 			}
 
 			ProcessAssimpNode(Scene->mRootNode, Scene, object, filepath);
+			OptimizeMesh(*object);
 			object->Buffer();
 
 			mesh_count = 0;

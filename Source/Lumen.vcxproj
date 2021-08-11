@@ -164,6 +164,7 @@
     <ClInclude Include="Core\GLClasses\VertexArray.h" />
     <ClInclude Include="Core\GLClasses\VertexBuffer.h" />
     <ClInclude Include="Core\Mesh.h" />
+    <ClInclude Include="Core\MeshOptimizer.h" />
     <ClInclude Include="Core\ModelFileLoader.h" />
     <ClInclude Include="Core\ModelRenderer.h" />
     <ClInclude Include="Core\Object.h" />
@@ -199,6 +200,7 @@
     <ClCompile Include="Core\GLClasses\VertexArray.cpp" />
     <ClCompile Include="Core\GLClasses\VertexBuffer.cpp" />
     <ClCompile Include="Core\Mesh.cpp" />
+    <ClCompile Include="Core\MeshOptimizer.cpp" />
     <ClCompile Include="Core\ModelFileLoader.cpp" />
     <ClCompile Include="Core\ModelRenderer.cpp" />
     <ClCompile Include="Core\Object.cpp" />

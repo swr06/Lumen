@@ -36,7 +36,7 @@ namespace GLClasses
 
 		else
 		{
-			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		}
 
 		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, mag_filter);
@@ -46,11 +46,19 @@ namespace GLClasses
 		for (int i = 0; i < layer_count; i++)
 		{
 			int w, h, bpp;
-			unsigned char* image = nullptr; image = stbi_load(paths[i].c_str(), &w, &h, &bpp, 4);
+			unsigned char* image = nullptr; 
+			
+			image = stbi_load(paths[i].c_str(), &w, &h, &bpp, 4);
+
+
+
+
+
+
 
 			if (image)
 			{
-				glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, texture_size.first, texture_size.second,
+				glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, texture_size.first-1, texture_size.second-1,
 					1, GL_RGBA, GL_UNSIGNED_BYTE, image);
 
 				m_TextureLocations[paths[i]] = i;

@@ -1,6 +1,3 @@
 
-ERROR! : UNIFORM NOT FOUND!    |    UNIFORM : u_AlbedoMap  
-
-
 ERROR! : UNIFORM NOT FOUND!    |    UNIFORM : u_NormalMatrix  
 

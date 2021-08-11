@@ -13,27 +13,27 @@ void Lumen::RenderEntity(Entity& entity, GLClasses::Shader& shader)
 	{
 		const Mesh* mesh = &e;
 
-		if (mesh->m_AlbedoMap.GetTextureID() != 0)
+		if (mesh->m_AlbedoMap.GetID() > 0)
 		{
 			mesh->m_AlbedoMap.Bind(0);
 		}
 
-		if (mesh->m_NormalMap.GetTextureID() != 0)
+		if (mesh->m_NormalMap.GetID() > 0)
 		{
 			mesh->m_NormalMap.Bind(1);
 		}
 
-		if (mesh->m_MetalnessMap.GetTextureID() != 0)
+		if (mesh->m_MetalnessMap.GetID() > 0)
 		{
 			mesh->m_MetalnessMap.Bind(3);
 		}
 
-		if (mesh->m_RoughnessMap.GetTextureID() != 0)
+		if (mesh->m_RoughnessMap.GetID() > 0)
 		{
 			mesh->m_RoughnessMap.Bind(4);
 		}
 
-		if (mesh->m_AmbientOcclusionMap.GetTextureID() != 0)
+		if (mesh->m_AmbientOcclusionMap.GetID() > 0)
 		{
 			mesh->m_AmbientOcclusionMap.Bind(5);
 		}

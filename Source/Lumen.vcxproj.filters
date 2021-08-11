@@ -147,6 +147,9 @@
     <ClInclude Include="Core\Entity.h">
       <Filter>Source Files\Lumen\Lumen-Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\MeshOptimizer.h">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Dependencies\imgui\imgui.cpp">
@@ -237,6 +240,9 @@
       <Filter>Source Files\Lumen\Lumen-Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\ModelRenderer.cpp">
+      <Filter>Source Files\Lumen\Lumen-Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\MeshOptimizer.cpp">
       <Filter>Source Files\Lumen\Lumen-Core</Filter>
     </ClCompile>
   </ItemGroup>

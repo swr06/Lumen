@@ -9,6 +9,7 @@
 #include "GLClasses/VertexBuffer.h"
 #include "GLClasses/IndexBuffer.h"
 #include "GLClasses/VertexArray.h"
+#include "GLClasses/TextureArray.h"
 #include <glad/glad.h>
 
 namespace Lumen
@@ -25,12 +26,13 @@ namespace Lumen
 		std::vector<GLuint> m_Indices;
 		std::string m_MeshName;
 
+		std::string TexturePaths[5];
 
-		GLClasses::Texture m_AlbedoMap;
-		GLClasses::Texture m_NormalMap;
-		GLClasses::Texture m_MetalnessMap;
-		GLClasses::Texture m_RoughnessMap;
-		GLClasses::Texture m_AmbientOcclusionMap;
+		GLClasses::TextureArray m_AlbedoMap;
+		GLClasses::TextureArray m_NormalMap;
+		GLClasses::TextureArray m_MetalnessMap;
+		GLClasses::TextureArray m_RoughnessMap;
+		GLClasses::TextureArray m_AmbientOcclusionMap;
 
 		GLClasses::VertexBuffer m_VertexBuffer;
 		GLClasses::VertexArray m_VertexArray;
