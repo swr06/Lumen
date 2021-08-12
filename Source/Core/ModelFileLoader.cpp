@@ -100,10 +100,10 @@ namespace Lumen
 
 				if (mesh->mTextureCoords[0])
 				{
-					vt.tex_coords = glm::vec2(
+					vt.texcoords = glm::packHalf2x16(glm::vec2(
 						mesh->mTextureCoords[0][i].x,
 						mesh->mTextureCoords[0][i].y
-					);
+					));
 
 					if (mesh->mTangents)
 					{
@@ -122,7 +122,7 @@ namespace Lumen
 
 				else
 				{
-					vt.tex_coords = glm::vec2(0.0f, 0.0f);
+					vt.texcoords = glm::packHalf2x16(glm::vec2(0.0f, 0.0f));
 				}
 
 				vertices.push_back(vt);

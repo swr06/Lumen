@@ -1,8 +1,8 @@
-#version 330 core
+#version 430 core
 
 layout (location = 0) in vec3 a_Position;
 layout (location = 1) in vec3 a_Normal;
-layout (location = 2) in vec2 a_TexCoords;
+layout (location = 2) in uint a_TexCoords;
 layout (location = 3) in vec3 a_Tangent;
 layout (location = 4) in uint a_TexID;
 layout (location = 5) in uint a_TexID2;
@@ -25,7 +25,8 @@ void main()
 	gl_Position = u_ModelMatrix * vec4(a_Position, 1.0f);
 	v_FragPosition = gl_Position.xyz;
 	gl_Position = u_ViewProjection * gl_Position;
-	v_TexCoords = a_TexCoords;
+	
+	v_TexCoords = unpackHalf2x16(a_TexCoords);
 	v_Normal = mat3(u_NormalMatrix) * a_Normal;  
 
 	vec3 T = (vec3(u_ModelMatrix * vec4(a_Tangent, 0.0)));
