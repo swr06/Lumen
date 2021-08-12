@@ -5,7 +5,8 @@ static std::unordered_map<std::string, GLClasses::Shader> ShaderManager_ShaderMa
 
 void Lumen::ShaderManager::CreateShaders()
 {
-
+	AddShader("GBUFFER", "Core/Shaders/GeometryVert.glsl", "Core/Shaders/GeometryFrag.glsl");
+	AddShader("FINAL", "Core/Shaders/FBOVert.glsl", "Core/Shaders/FBOFrag.glsl");
 }
 
 void Lumen::ShaderManager::AddShader(const std::string& name, const std::string& vert, const std::string& frag, const std::string& geo)

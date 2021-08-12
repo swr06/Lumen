@@ -7,8 +7,12 @@
 #include "ModelFileLoader.h"
 #include "ModelRenderer.h"
 #include "GLClasses/Fps.h"
+#include "GLClasses/Framebuffer.h"
+#include "ShaderManager.h"
 
 Lumen::FPSCamera Camera(90.0f, 800.0f / 600.0f);
+
+bool vsync = true;
 
 class RayTracerApp : public Lumen::Application
 {
@@ -22,41 +26,47 @@ public:
 
 	void OnUserCreate(double ts) override
 	{
-
+	
 	}
 
 	void OnUserUpdate(double ts) override
 	{
+		glfwSwapInterval((int)vsync);
+
 		GLFWwindow* window = GetWindow();
-		float camera_speed = 0.1f;
+		float camera_speed = 0.3f;
 
-		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-			Camera.ChangePosition(Camera.GetFront() * camera_speed);
+		if (GetCursorLocked()) {
+			if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+				Camera.ChangePosition(Camera.GetFront() * camera_speed);
 
-		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-			Camera.ChangePosition(-(Camera.GetFront() * camera_speed));
+			if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+				Camera.ChangePosition(-(Camera.GetFront() * camera_speed));
 
-		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-			Camera.ChangePosition(-(Camera.GetRight() * camera_speed));
+			if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+				Camera.ChangePosition(-(Camera.GetRight() * camera_speed));
 
-		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-			Camera.ChangePosition(Camera.GetRight() * camera_speed);
+			if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+				Camera.ChangePosition(Camera.GetRight() * camera_speed);
 
-		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-			Camera.ChangePosition(Camera.GetUp() * camera_speed);
+			if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+				Camera.ChangePosition(Camera.GetUp() * camera_speed);
 
-		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-			Camera.ChangePosition(-(Camera.GetUp() * camera_speed));
+			if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+				Camera.ChangePosition(-(Camera.GetUp() * camera_speed));
+
+		}
 	}
 
 	void OnImguiRender(double ts) override
 	{
-		ImGui::Text("Test!");
+		ImGui::Text("Position : %f,  %f,  %f", Camera.GetPosition().x, Camera.GetPosition().y, Camera.GetPosition().z);
+		ImGui::Text("Front : %f,  %f,  %f", Camera.GetFront().x, Camera.GetFront().y, Camera.GetFront().z);
 	}
 
 	void OnEvent(Lumen::Event e) override
 	{
-		if (e.type == Lumen::EventTypes::MouseMove)
+		if (e.type == Lumen::EventTypes::MouseMove && GetCursorLocked())
 		{
 			Camera.UpdateOnMouseMovement(e.mx, e.my);
 		}
@@ -69,10 +79,32 @@ public:
 		if (e.type == Lumen::EventTypes::KeyPress && e.key == GLFW_KEY_ESCAPE) {
 			exit(0);
 		}
+
+		if (e.type == Lumen::EventTypes::KeyPress && e.key == GLFW_KEY_F1)
+		{
+			this->SetCursorLocked(!this->GetCursorLocked());
+		}
+
+		if (e.type == Lumen::EventTypes::KeyPress && e.key == GLFW_KEY_F2 && this->GetCurrentFrame() > 5)
+		{
+			Lumen::ShaderManager::RecompileShaders();
+		}
+
+		if (e.type == Lumen::EventTypes::KeyPress && e.key == GLFW_KEY_V && this->GetCurrentFrame() > 5)
+		{
+			vsync = !vsync;
+		}
 	}
 
 
 };
+
+void UnbindEverything() {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glUseProgram(0);
+}
+
+GLClasses::Framebuffer GBuffer(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, false, false} }, false, true);
 
 void Lumen::StartPipeline()
 {
@@ -80,28 +112,37 @@ void Lumen::StartPipeline()
 	app.Initialize();
 	app.SetCursorLocked(true);
 
+
 	GLClasses::VertexBuffer ScreenQuadVBO;
 	GLClasses::VertexArray ScreenQuadVAO;
-	GLClasses::Shader MeshShader;
-
-	MeshShader.CreateShaderProgramFromFile("Core/Shaders/BasicVert.glsl", "Core/Shaders/BasicFrag.glsl");
-	MeshShader.CompileShaders();
-
-	unsigned long long CurrentFrame = 0;
-
-	float QuadVertices_NDC[] =
 	{
-		-1.0f,  1.0f,  0.0f, 1.0f, -1.0f, -1.0f,  0.0f, 0.0f,
-		 1.0f, -1.0f,  1.0f, 0.0f, -1.0f,  1.0f,  0.0f, 1.0f,
-		 1.0f, -1.0f,  1.0f, 0.0f,  1.0f,  1.0f,  1.0f, 1.0f
-	};
+		unsigned long long CurrentFrame = 0;
+		float QuadVertices_NDC[] =
+		{
+			-1.0f,  1.0f,  0.0f, 1.0f, -1.0f, -1.0f,  0.0f, 0.0f,
+			 1.0f, -1.0f,  1.0f, 0.0f, -1.0f,  1.0f,  0.0f, 1.0f,
+			 1.0f, -1.0f,  1.0f, 0.0f,  1.0f,  1.0f,  1.0f, 1.0f
+		};
 
-	ScreenQuadVAO.Bind();
-	ScreenQuadVBO.Bind();
-	ScreenQuadVBO.BufferData(sizeof(QuadVertices_NDC), QuadVertices_NDC, GL_STATIC_DRAW);
-	ScreenQuadVBO.VertexAttribPointer(0, 2, GL_FLOAT, 0, 4 * sizeof(GLfloat), 0);
-	ScreenQuadVBO.VertexAttribPointer(1, 2, GL_FLOAT, 0, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
-	ScreenQuadVAO.Unbind();
+		ScreenQuadVAO.Bind();
+		ScreenQuadVBO.Bind();
+		ScreenQuadVBO.BufferData(sizeof(QuadVertices_NDC), QuadVertices_NDC, GL_STATIC_DRAW);
+		ScreenQuadVBO.VertexAttribPointer(0, 2, GL_FLOAT, 0, 4 * sizeof(GLfloat), 0);
+		ScreenQuadVBO.VertexAttribPointer(1, 2, GL_FLOAT, 0, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
+		ScreenQuadVAO.Unbind();
+	}
+
+
+
+
+
+	// Create Shaders
+	ShaderManager::CreateShaders();
+	GLClasses::Shader& GBufferShader = ShaderManager::GetShader("GBUFFER");
+	GLClasses::Shader& FinalShader = ShaderManager::GetShader("FINAL");
+
+
+	
 
 	app.SetCursorLocked(true);
 
@@ -114,17 +155,44 @@ void Lumen::StartPipeline()
 
 	while (!glfwWindowShouldClose(app.GetWindow()))
 	{
+		GBuffer.SetSize(app.GetWidth() * 0.75f, app.GetHeight() * 0.75f);
+
+		// App update 
 		app.OnUpdate();
 
+		// Render GBuffer
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
+		GBuffer.Bind();
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		GBufferShader.Use();
+		GBufferShader.SetMatrix4("u_ViewProjection", Camera.GetViewProjection());
+		GBufferShader.SetInteger("u_AlbedoMap", 0);
+		GBufferShader.SetInteger("u_NormalMap", 1);
+		GBufferShader.SetInteger("u_RoughnessMap", 2);
+		GBufferShader.SetInteger("u_MetalnessMap", 3);
+		RenderEntity(MainModel, GBufferShader);
+		UnbindEverything();
 
-		MeshShader.Use();
-		MeshShader.SetMatrix4("u_ViewProjection", Camera.GetViewProjection());
-		MeshShader.SetInteger("u_AlbedoMap", 0);
-		MeshShader.SetInteger("u_NormalMap", 1);
-		RenderEntity(MainModel, MeshShader);
+		// Post processing passes here : 
 
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_DEPTH_TEST);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, app.GetWidth(), app.GetHeight());
+
+		FinalShader.Use();
+		FinalShader.SetInteger("u_AlbedoTexture", 0);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(0));
+
+		ScreenQuadVAO.Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		ScreenQuadVAO.Unbind();
+
+		// Finish : 
 		glFinish();
 		app.FinishFrame();
 		GLClasses::DisplayFrameRate(app.GetWindow(), "Lumen ");

@@ -27,19 +27,23 @@ void Lumen::RenderEntity(Entity& entity, GLClasses::Shader& shader)
 			mesh->m_NormalMap.Bind(1);
 		}
 
+		else {
+			std::cout << "knife";
+		}
+
+		if (mesh->m_RoughnessMap.GetID() != 0)
+		{
+			mesh->m_RoughnessMap.Bind(2);
+		}
+
 		if (mesh->m_MetalnessMap.GetID() != 0)
 		{
 			mesh->m_MetalnessMap.Bind(3);
 		}
 
-		if (mesh->m_RoughnessMap.GetID() != 0)
-		{
-			mesh->m_RoughnessMap.Bind(4);
-		}
-
 		if (mesh->m_AmbientOcclusionMap.GetID() != 0)
 		{
-			mesh->m_AmbientOcclusionMap.Bind(5);
+			mesh->m_AmbientOcclusionMap.Bind(4);
 		}
 
 		const GLClasses::VertexArray& VAO = mesh->m_VertexArray;
