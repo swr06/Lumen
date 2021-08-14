@@ -21,4 +21,5 @@ void main()
 	o_PBR = vec3(texture(u_RoughnessMap, v_TexCoords).r, 
 					texture(u_MetalnessMap, v_TexCoords).r, 
 					1.0f);
+	o_Albedo = o_Normal;
 }

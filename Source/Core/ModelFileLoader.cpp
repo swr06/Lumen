@@ -89,9 +89,11 @@ namespace Lumen
 					mesh->mVertices[i].z
 				);
 
+				glm::vec3 vnormal, vtan;
+
 				if (mesh->HasNormals())
 				{
-					vt.normals = glm::vec3(
+					vnormal = glm::vec3(
 						mesh->mNormals[i].x,
 						mesh->mNormals[i].y,
 						mesh->mNormals[i].z
@@ -107,17 +109,10 @@ namespace Lumen
 
 					if (mesh->mTangents)
 					{
-						vt.tangent.x = mesh->mTangents[i].x;
-						vt.tangent.y = mesh->mTangents[i].y;
-						vt.tangent.z = mesh->mTangents[i].z;
+						vtan.x = mesh->mTangents[i].x;
+						vtan.y = mesh->mTangents[i].y;
+						vtan.z = mesh->mTangents[i].z;
 					}
-
-					//if (mesh->mBitangents)
-					//{
-					//	vt.bitangent.x = mesh->mBitangents[i].x;
-					//	vt.bitangent.y = mesh->mBitangents[i].y;
-					//	vt.bitangent.z = mesh->mBitangents[i].z;
-					//}
 				}
 
 				else
@@ -125,6 +120,11 @@ namespace Lumen
 					vt.texcoords = glm::packHalf2x16(glm::vec2(0.0f, 0.0f));
 				}
 
+				glm::uvec3 data;
+				data.x = glm::packHalf2x16(glm::vec2(vnormal.x, vnormal.y));
+				data.y = glm::packHalf2x16(glm::vec2(vnormal.z, vtan.x));
+				data.z = glm::packHalf2x16(glm::vec2(vtan.y, vtan.z));
+				vt.normal_tangent_data = data;
 				vertices.push_back(vt);
 			}
 
