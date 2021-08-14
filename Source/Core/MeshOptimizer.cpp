@@ -73,10 +73,10 @@ void Lumen::OptimizeMesh(Object& object)
     }
 
     OptimizedMesh.m_AlbedoMap.CreateArray(AlbedoPaths, { 1024, 1024 }, true, true);
-    OptimizedMesh.m_NormalMap.CreateArray(NormalPaths, { 1024, 1024 }, true, true);
-    OptimizedMesh.m_RoughnessMap.CreateArray(RoughnessPaths, { 1024, 1024 }, true, true);
-    OptimizedMesh.m_MetalnessMap.CreateArray(MetalnessPaths, { 1024, 1024 }, true, true);
-    OptimizedMesh.m_AmbientOcclusionMap.CreateArray(AOPaths, { 1024, 1024 }, true, true);
+    OptimizedMesh.m_NormalMap.CreateArray(NormalPaths, { 1024, 1024 }, false , true);
+    OptimizedMesh.m_RoughnessMap.CreateArray(RoughnessPaths, { 1024, 1024 }, false, true);
+    OptimizedMesh.m_MetalnessMap.CreateArray(MetalnessPaths, { 1024, 1024 }, false, true);
+    OptimizedMesh.m_AmbientOcclusionMap.CreateArray(AOPaths, { 1024, 1024 }, false, true);
 
     for (auto& e : object.m_Meshes)
     {
@@ -107,5 +107,22 @@ void Lumen::OptimizeMesh(Object& object)
 
     object.m_Meshes.clear();
     object.m_Meshes.push_back(std::move(OptimizedMesh));
+}
+
+void Lumen::PartialOptimize(Object& object)
+{
+    std::vector<Mesh> OptimizedMeshes;
+
+    while (!object.m_Meshes.empty())
+    {
+        for (auto& i : object.m_Meshes)
+        {
+            OptimizedMeshes.emplace_back();
+            Mesh& mesh = OptimizedMeshes.back();
+
+            int n = i.m_MeshNumber;
+        }
+
+    }
 }
 

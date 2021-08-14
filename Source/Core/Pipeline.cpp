@@ -155,7 +155,7 @@ void Lumen::StartPipeline()
 
 	while (!glfwWindowShouldClose(app.GetWindow()))
 	{
-		GBuffer.SetSize(app.GetWidth() * 0.75f, app.GetHeight() * 0.75f);
+		GBuffer.SetSize(app.GetWidth(), app.GetHeight());
 
 		// App update 
 		app.OnUpdate();

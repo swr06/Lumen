@@ -224,8 +224,15 @@ namespace Lumen
 			}
 
 			ProcessAssimpNode(Scene->mRootNode, Scene, object, filepath);
-			OptimizeMesh(*object);
-			object->Buffer();
+
+			bool full_optimize = false;
+			if (full_optimize) {
+				OptimizeMesh(*object);
+			}
+
+			else {
+				object->Buffer();
+			}
 
 			mesh_count = 0;
 			is_gltf = false;

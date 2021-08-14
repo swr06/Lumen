@@ -10,4 +10,5 @@ namespace Lumen {
 
 	void SoftwareUpsample(char* pixels, uint8_t type, int w, int h, int nw, int nh);
 	void OptimizeMesh(Object& object);
+	void PartialOptimize(Object& object);
 }
