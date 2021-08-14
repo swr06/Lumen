@@ -28,11 +28,11 @@ namespace Lumen
 
 		std::string TexturePaths[5];
 
-		GLClasses::TextureArray m_AlbedoMap;
-		GLClasses::TextureArray m_NormalMap;
-		GLClasses::TextureArray m_MetalnessMap;
-		GLClasses::TextureArray m_RoughnessMap;
-		GLClasses::TextureArray m_AmbientOcclusionMap;
+		GLClasses::Texture m_AlbedoMap;
+		GLClasses::Texture m_NormalMap;
+		GLClasses::Texture m_MetalnessMap;
+		GLClasses::Texture m_RoughnessMap;
+		GLClasses::Texture m_AmbientOcclusionMap;
 
 		GLClasses::VertexBuffer m_VertexBuffer;
 		GLClasses::VertexArray m_VertexArray;
@@ -46,6 +46,9 @@ namespace Lumen
 		glm::vec4 m_Color = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 		std::string m_Name = std::string("");
 		const uint32_t m_MeshNumber;
+
+
+		bool Deleted = false;
 	};
 
 }

@@ -225,14 +225,24 @@ namespace Lumen
 
 			ProcessAssimpNode(Scene->mRootNode, Scene, object, filepath);
 
-			bool full_optimize = false;
-			if (full_optimize) {
-				OptimizeMesh(*object);
+			bool optimize = false;
+
+			if (optimize) {
+				PartialOptimize(*object);
 			}
 
 			else {
-				object->Buffer();
+				for (auto& e : object->m_Meshes)
+				{
+					e.m_AlbedoMap.CreateTexture(e.TexturePaths[0], true, true);
+					e.m_NormalMap.CreateTexture(e.TexturePaths[1], false, true);
+					e.m_RoughnessMap.CreateTexture(e.TexturePaths[2], false, true);
+					e.m_MetalnessMap.CreateTexture(e.TexturePaths[3], false, true);
+					e.m_AmbientOcclusionMap.CreateTexture(e.TexturePaths[4], false, true);
+				}
 			}
+
+			object->Buffer();
 
 			mesh_count = 0;
 			is_gltf = false;

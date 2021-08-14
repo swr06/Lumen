@@ -52,6 +52,7 @@ void Lumen::SoftwareUpsample(char* pixels, uint8_t type, int w, int h, int nw, i
     }
 }
 
+/*
 void Lumen::OptimizeMesh(Object& object)
 {
     Mesh OptimizedMesh = Mesh(0);
@@ -107,22 +108,106 @@ void Lumen::OptimizeMesh(Object& object)
 
     object.m_Meshes.clear();
     object.m_Meshes.push_back(std::move(OptimizedMesh));
+}*/
+
+/*
+void Lumen::PartialOptimize(Object& object)
+{
+    std::cout << "epic!!!!!!!!!!!";
+    std::vector<Mesh> OptimizedMeshes;
+
+    for (int i = 0; i < object.m_Meshes.size(); i++)
+    {
+        Mesh& current_mesh = object.m_Meshes.at(i);
+        if (current_mesh.Deleted) { continue; }
+
+        OptimizedMeshes.emplace_back(OptimizedMeshes.size());
+        Mesh& optimize_mesh = OptimizedMeshes.back();
+        unsigned int indexoffset = 0;
+
+        for (int j = 0 ; j < object.m_Meshes.size() ; j++)
+        {
+            Mesh& mesh_at = object.m_Meshes.at(j);
+
+            if (current_mesh.TexturePaths[0] == mesh_at.TexturePaths[0] &&
+                current_mesh.TexturePaths[1] == mesh_at.TexturePaths[1]) {
+
+                optimize_mesh.m_Vertices.insert(std::end(optimize_mesh.m_Vertices), std::begin(mesh_at.m_Vertices), std::end(mesh_at.m_Vertices));
+                indexoffset += mesh_at.m_Vertices.size();
+
+                for (int x = 0; x < mesh_at.m_Indices.size(); x++) {
+                    optimize_mesh.m_Indices.push_back(mesh_at.m_Indices.at(x) + indexoffset);
+                }
+
+                optimize_mesh.TexturePaths[0] = mesh_at.TexturePaths[0];
+                optimize_mesh.TexturePaths[1] = mesh_at.TexturePaths[1];
+                optimize_mesh.TexturePaths[2] = mesh_at.TexturePaths[2];
+                optimize_mesh.TexturePaths[3] = mesh_at.TexturePaths[3];
+                optimize_mesh.TexturePaths[4] = mesh_at.TexturePaths[4];
+            }
+
+            mesh_at.Deleted = true;
+        }
+
+        optimize_mesh.m_AlbedoMap.CreateTexture(optimize_mesh.TexturePaths[0], true, true);
+        optimize_mesh.m_NormalMap.CreateTexture(optimize_mesh.TexturePaths[1], true, true);
+        optimize_mesh.m_RoughnessMap.CreateTexture(optimize_mesh.TexturePaths[2], true, true);
+        optimize_mesh.m_MetalnessMap.CreateTexture(optimize_mesh.TexturePaths[3], true, true);
+        optimize_mesh.m_AmbientOcclusionMap.CreateTexture(optimize_mesh.TexturePaths[4], true, true);
+    }
+
+    std::cout << OptimizedMeshes.size() << "\n\n";
+    object.m_Meshes.clear();
+    object.m_Meshes = std::move(OptimizedMeshes);
+    std::cout << object.m_Meshes.size() << "\n\n";
+
 }
+
+*/
 
 void Lumen::PartialOptimize(Object& object)
 {
+    std::unordered_map<std::string, std::vector<int>> SimilarMeshes;
     std::vector<Mesh> OptimizedMeshes;
 
-    while (!object.m_Meshes.empty())
-    {
-        for (auto& i : object.m_Meshes)
-        {
-            OptimizedMeshes.emplace_back();
-            Mesh& mesh = OptimizedMeshes.back();
+    for (int m = 0; m < object.m_Meshes.size(); m++) {
 
-            int n = i.m_MeshNumber;
+        std::string ref = object.m_Meshes.at(m).TexturePaths[0]
+                        + object.m_Meshes.at(m).TexturePaths[1] 
+                        + object.m_Meshes.at(m).TexturePaths[2]
+                        + object.m_Meshes.at(m).TexturePaths[3];
+        SimilarMeshes[ref].push_back(m);
+    }
+
+    for (auto& e : SimilarMeshes)
+    {
+        OptimizedMeshes.emplace_back(OptimizedMeshes.size());
+        Mesh& mesh = OptimizedMeshes.back();
+
+        unsigned int index_offset = 0;
+
+        for (int x = 0; x < e.second.size(); x++)
+        {
+            Mesh& curr_mesh = object.m_Meshes.at(x);
+            mesh.m_Vertices.insert(std::end(mesh.m_Vertices), std::begin(curr_mesh.m_Vertices), std::end(curr_mesh.m_Vertices));
+
+            for (int i = 0; i < curr_mesh.m_Indices.size(); i++)
+            {
+                mesh.m_Indices.push_back(curr_mesh.m_Indices.at(i) + index_offset);
+            }
+
+            index_offset += curr_mesh.m_Vertices.size();
         }
 
+        mesh.m_AlbedoMap.CreateTexture(object.m_Meshes.at(e.second.at(0)).TexturePaths[0], true, true);
+        mesh.m_NormalMap.CreateTexture(object.m_Meshes.at(e.second.at(0)).TexturePaths[1], false, true);
+        mesh.m_RoughnessMap.CreateTexture(object.m_Meshes.at(e.second.at(0)).TexturePaths[2], false, true);
+        mesh.m_MetalnessMap.CreateTexture(object.m_Meshes.at(e.second.at(0)).TexturePaths[3], false, true);
+        mesh.m_AmbientOcclusionMap.CreateTexture(object.m_Meshes.at(e.second.at(0)).TexturePaths[4], false, true);
     }
-}
 
+    std::cout << "\n\n\n O " << OptimizedMeshes.size();
+    object.m_Meshes.clear();
+    object.m_Meshes = std::move(OptimizedMeshes);
+    std::cout << "\n\n\n M " << object.m_Meshes.size();
+}

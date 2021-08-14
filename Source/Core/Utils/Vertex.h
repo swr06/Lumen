@@ -10,7 +10,5 @@ namespace Lumen
 		glm::vec3 normals;
 		GLuint texcoords;
 		glm::vec3 tangent;
-		uint16_t TEXID1;
-		uint16_t TEXID2;
 	};
 }

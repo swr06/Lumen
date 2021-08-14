@@ -99,6 +99,11 @@ namespace GLClasses
 			return m_Texture;
 		};
 
+		inline GLuint GetID() const
+		{
+			return m_Texture;
+		};
+
 		inline string GetTexturePath() const
 		{
 			return m_path;
