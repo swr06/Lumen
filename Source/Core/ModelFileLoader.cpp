@@ -89,7 +89,7 @@ namespace Lumen
 					mesh->mVertices[i].z
 				);
 
-				glm::vec3 vnormal, vtan;
+				glm::vec3 vnormal = glm::vec3(0.0f), vtan = glm::vec3(0.0f);
 
 				if (mesh->HasNormals())
 				{
