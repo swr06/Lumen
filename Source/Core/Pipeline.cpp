@@ -9,12 +9,17 @@
 #include "GLClasses/Fps.h"
 #include "GLClasses/Framebuffer.h"
 #include "ShaderManager.h"
+#include "GLClasses/DepthBuffer.h"
+#include "ShadowRenderer.h"
+#include "GLClasses/CubeTextureMap.h"
+
+#include <string>
 
 Lumen::FPSCamera Camera(90.0f, 800.0f / 600.0f);
 
-static bool vsync = true;
+static bool vsync = false;
 static float SunTick = 50.0f;
-static glm::vec3 SunDirection;
+static glm::vec3 SunDirection = glm::vec3(0.1f, -1.0f, 0.1f);
 
 class RayTracerApp : public Lumen::Application
 {
@@ -36,7 +41,7 @@ public:
 		glfwSwapInterval((int)vsync);
 
 		GLFWwindow* window = GetWindow();
-		float camera_speed = 0.3f;
+		float camera_speed = 0.525f;
 
 		if (GetCursorLocked()) {
 			if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -65,6 +70,7 @@ public:
 		ImGui::Text("Position : %f,  %f,  %f", Camera.GetPosition().x, Camera.GetPosition().y, Camera.GetPosition().z);
 		ImGui::Text("Front : %f,  %f,  %f", Camera.GetFront().x, Camera.GetFront().y, Camera.GetFront().z);
 		ImGui::SliderFloat("Sun Time ", &SunTick, 0.1f, 256.0f);
+		ImGui::SliderFloat3("Sun Dir : ", &SunDirection[0], -1.0f, 1.0f);
 	}
 
 	void OnEvent(Lumen::Event e) override
@@ -119,6 +125,24 @@ void Lumen::StartPipeline()
 
 	GLClasses::VertexBuffer ScreenQuadVBO;
 	GLClasses::VertexArray ScreenQuadVAO;
+
+	GLClasses::DepthBuffer Shadowmap(3584, 3584);
+	GLClasses::Texture BlueNoise;
+	GLClasses::CubeTextureMap Skymap;
+
+	Skymap.CreateCubeTextureMap(
+		{
+		"Res/Skymap/right.bmp",
+		"Res/Skymap/left.bmp",
+		"Res/Skymap/top.bmp",
+		"Res/Skymap/bottom.bmp",
+		"Res/Skymap/front.bmp",
+		"Res/Skymap/back.bmp"
+		}, true
+	);
+
+	BlueNoise.CreateTexture("Res/blue_noise.png", false, false);
+
 	{
 		unsigned long long CurrentFrame = 0;
 		float QuadVertices_NDC[] =
@@ -154,7 +178,7 @@ void Lumen::StartPipeline()
 	FileLoader::LoadModelFile(&Sponza, "Models/sponza-pbr/Sponza.gltf");
 	Entity MainModel(&Sponza);
 
-	MainModel.m_Model = glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));
+	MainModel.m_Model = glm::scale(glm::mat4(1.0f), glm::vec3(0.2f));
 	MainModel.m_Model = glm::translate(MainModel.m_Model, glm::vec3(0.0f));
 
 	while (!glfwWindowShouldClose(app.GetWindow()))
@@ -164,10 +188,12 @@ void Lumen::StartPipeline()
 
 		// App update 
 		app.OnUpdate();
-		float time_angle = SunTick * 2.0f;
-		glm::mat4 sun_rotation_matrix;
-		sun_rotation_matrix = glm::rotate(glm::mat4(1.0f), glm::radians(time_angle), glm::vec3(0.0f, 0.0f, 1.0f));
-		SunDirection = glm::vec3(sun_rotation_matrix * glm::vec4(1.0f));
+
+		if (app.GetCurrentFrame() % 8 == 0)
+		{
+			// Shadow pass 
+			RenderShadowMap(Shadowmap, SunDirection, { &MainModel }, Camera.GetViewProjection());
+		}
 
 		// Render GBuffer
 		glEnable(GL_CULL_FACE);
@@ -197,11 +223,17 @@ void Lumen::StartPipeline()
 		LightingShader.SetInteger("u_NormalTexture", 1);
 		LightingShader.SetInteger("u_PBRTexture", 2);
 		LightingShader.SetInteger("u_DepthTexture", 3);
+		LightingShader.SetInteger("u_ShadowTexture", 4);
+		LightingShader.SetInteger("u_BlueNoise", 5);
+		LightingShader.SetInteger("u_Skymap", 6);
 
 		LightingShader.SetMatrix4("u_Projection", Camera.GetProjectionMatrix());
 		LightingShader.SetMatrix4("u_View", Camera.GetViewMatrix());
 		LightingShader.SetMatrix4("u_InverseProjection", glm::inverse(Camera.GetProjectionMatrix()));
 		LightingShader.SetMatrix4("u_InverseView", glm::inverse(Camera.GetViewMatrix()));
+		LightingShader.SetMatrix4("u_LightVP", GetLightViewProjection(SunDirection));
+		LightingShader.SetVector2f("u_Dims", glm::vec2(app.GetWidth(), app.GetHeight()));
+
 
 		LightingShader.SetVector3f("u_LightDirection", SunDirection);
 		LightingShader.SetVector3f("u_ViewerPosition", Camera.GetPosition());
@@ -217,6 +249,15 @@ void Lumen::StartPipeline()
 
 		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, Shadowmap.GetDepthTexture());
+
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, BlueNoise.GetTextureID());
+
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, Skymap.GetID());
 
 		ScreenQuadVAO.Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 6);

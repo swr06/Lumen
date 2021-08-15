@@ -153,6 +153,7 @@
     <ClInclude Include="Core\FpsCamera.h" />
     <ClInclude Include="Core\GLClasses\ComputeShader.h" />
     <ClInclude Include="Core\GLClasses\CubeTextureMap.h" />
+    <ClInclude Include="Core\GLClasses\DepthBuffer.h" />
     <ClInclude Include="Core\GLClasses\Fps.h" />
     <ClInclude Include="Core\GLClasses\Framebuffer.h" />
     <ClInclude Include="Core\GLClasses\FramebufferRed.h" />
@@ -171,6 +172,7 @@
     <ClInclude Include="Core\OrthographicCamera.h" />
     <ClInclude Include="Core\Pipeline.h" />
     <ClInclude Include="Core\ShaderManager.h" />
+    <ClInclude Include="Core\ShadowRenderer.h" />
     <ClInclude Include="Core\Utils\Random.h" />
     <ClInclude Include="Core\Utils\Timer.h" />
     <ClInclude Include="Core\Utils\Vertex.h" />
@@ -189,6 +191,7 @@
     <ClCompile Include="Core\FpsCamera.cpp" />
     <ClCompile Include="Core\GLClasses\ComputeShader.cpp" />
     <ClCompile Include="Core\GLClasses\CubeTextureMap.cpp" />
+    <ClCompile Include="Core\GLClasses\DepthBuffer.cpp" />
     <ClCompile Include="Core\GLClasses\Fps.cpp" />
     <ClCompile Include="Core\GLClasses\Framebuffer.cpp" />
     <ClCompile Include="Core\GLClasses\FramebufferRed.cpp" />
@@ -207,6 +210,7 @@
     <ClCompile Include="Core\OrthographicCamera.cpp" />
     <ClCompile Include="Core\Pipeline.cpp" />
     <ClCompile Include="Core\ShaderManager.cpp" />
+    <ClCompile Include="Core\ShadowRenderer.cpp" />
     <ClCompile Include="Dependencies\glad\src\glad.c" />
     <ClCompile Include="Dependencies\imgui\imgui.cpp" />
     <ClCompile Include="Dependencies\imgui\imgui_demo.cpp">
@@ -223,6 +227,8 @@
     <None Include="Core\Shaders\BasicFrag.glsl" />
     <None Include="Core\Shaders\BasicVert.glsl" />
     <None Include="Core\Shaders\ColorPass.glsl" />
+    <None Include="Core\Shaders\DepthFrag.glsl" />
+    <None Include="Core\Shaders\DepthVert.glsl" />
     <None Include="Core\Shaders\FBOFrag.glsl" />
     <None Include="Core\Shaders\FBOVert.glsl" />
     <None Include="Core\Shaders\GeometryFrag.glsl" />
