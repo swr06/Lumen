@@ -26,13 +26,14 @@ namespace Lumen
 		std::vector<GLuint> m_Indices;
 		std::string m_MeshName;
 
-		std::string TexturePaths[5];
+		std::string TexturePaths[6];
 
 		GLClasses::Texture m_AlbedoMap;
 		GLClasses::Texture m_NormalMap;
 		GLClasses::Texture m_MetalnessMap;
 		GLClasses::Texture m_RoughnessMap;
 		GLClasses::Texture m_AmbientOcclusionMap;
+		GLClasses::Texture m_MetalnessRoughnessMap;
 
 		GLClasses::VertexBuffer m_VertexBuffer;
 		GLClasses::VertexArray m_VertexArray;

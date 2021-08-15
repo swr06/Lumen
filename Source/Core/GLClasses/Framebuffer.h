@@ -92,7 +92,7 @@ namespace GLClasses
 			return m_TextureAttachments.at(n);
 		}
 
-		inline GLuint GetDepthStencilBuffer() const
+		inline GLuint GetDepthBuffer() const
 		{
 			return m_DepthBuffer;
 		}

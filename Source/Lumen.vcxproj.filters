@@ -265,5 +265,8 @@
     <None Include="Core\Shaders\GeometryVert.glsl">
       <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders</Filter>
     </None>
+    <None Include="Core\Shaders\ColorPass.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

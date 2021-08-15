@@ -12,7 +12,9 @@
 
 Lumen::FPSCamera Camera(90.0f, 800.0f / 600.0f);
 
-bool vsync = true;
+static bool vsync = true;
+static float SunTick = 50.0f;
+static glm::vec3 SunDirection;
 
 class RayTracerApp : public Lumen::Application
 {
@@ -62,6 +64,7 @@ public:
 	{
 		ImGui::Text("Position : %f,  %f,  %f", Camera.GetPosition().x, Camera.GetPosition().y, Camera.GetPosition().z);
 		ImGui::Text("Front : %f,  %f,  %f", Camera.GetFront().x, Camera.GetFront().y, Camera.GetFront().z);
+		ImGui::SliderFloat("Sun Time ", &SunTick, 0.1f, 256.0f);
 	}
 
 	void OnEvent(Lumen::Event e) override
@@ -105,6 +108,7 @@ void UnbindEverything() {
 }
 
 GLClasses::Framebuffer GBuffer(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, false, false} }, false, true);
+GLClasses::Framebuffer LightingPass(16, 16, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, false, true);
 
 void Lumen::StartPipeline()
 {
@@ -133,12 +137,12 @@ void Lumen::StartPipeline()
 	}
 
 
-
-
-
 	// Create Shaders
 	ShaderManager::CreateShaders();
+
+
 	GLClasses::Shader& GBufferShader = ShaderManager::GetShader("GBUFFER");
+	GLClasses::Shader& LightingShader = ShaderManager::GetShader("LIGHTING_PASS");
 	GLClasses::Shader& FinalShader = ShaderManager::GetShader("FINAL");
 
 
@@ -156,9 +160,14 @@ void Lumen::StartPipeline()
 	while (!glfwWindowShouldClose(app.GetWindow()))
 	{
 		GBuffer.SetSize(app.GetWidth(), app.GetHeight());
+		LightingPass.SetSize(app.GetWidth(), app.GetHeight());
 
 		// App update 
 		app.OnUpdate();
+		float time_angle = SunTick * 2.0f;
+		glm::mat4 sun_rotation_matrix;
+		sun_rotation_matrix = glm::rotate(glm::mat4(1.0f), glm::radians(time_angle), glm::vec3(0.0f, 0.0f, 1.0f));
+		SunDirection = glm::vec3(sun_rotation_matrix * glm::vec4(1.0f));
 
 		// Render GBuffer
 		glEnable(GL_CULL_FACE);
@@ -171,22 +180,59 @@ void Lumen::StartPipeline()
 		GBufferShader.SetInteger("u_NormalMap", 1);
 		GBufferShader.SetInteger("u_RoughnessMap", 2);
 		GBufferShader.SetInteger("u_MetalnessMap", 3);
+		GBufferShader.SetInteger("u_MetalnessRoughnessMap", 5);
 		RenderEntity(MainModel, GBufferShader);
 		UnbindEverything();
 
 		// Post processing passes here : 
-
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_DEPTH_TEST);
 
+		// Lighting pass : 
+
+		LightingShader.Use();
+		LightingPass.Bind();
+
+		LightingShader.SetInteger("u_AlbedoTexture", 0);
+		LightingShader.SetInteger("u_NormalTexture", 1);
+		LightingShader.SetInteger("u_PBRTexture", 2);
+		LightingShader.SetInteger("u_DepthTexture", 3);
+
+		LightingShader.SetMatrix4("u_Projection", Camera.GetProjectionMatrix());
+		LightingShader.SetMatrix4("u_View", Camera.GetViewMatrix());
+		LightingShader.SetMatrix4("u_InverseProjection", glm::inverse(Camera.GetProjectionMatrix()));
+		LightingShader.SetMatrix4("u_InverseView", glm::inverse(Camera.GetViewMatrix()));
+
+		LightingShader.SetVector3f("u_LightDirection", SunDirection);
+		LightingShader.SetVector3f("u_ViewerPosition", Camera.GetPosition());
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(0));
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(1));
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(2));
+
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+
+		ScreenQuadVAO.Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		ScreenQuadVAO.Unbind();
+
+
+
+		// Final
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glViewport(0, 0, app.GetWidth(), app.GetHeight());
 
 		FinalShader.Use();
-		FinalShader.SetInteger("u_AlbedoTexture", 0);
+		FinalShader.SetInteger("u_MainTexture", 0);
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(0));
+		glBindTexture(GL_TEXTURE_2D, LightingPass.GetTexture(0));
 
 		ScreenQuadVAO.Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 6);

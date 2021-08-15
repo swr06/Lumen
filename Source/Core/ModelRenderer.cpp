@@ -46,6 +46,14 @@ void Lumen::RenderEntity(Entity& entity, GLClasses::Shader& shader)
 			mesh->m_AmbientOcclusionMap.Bind(4);
 		}
 
+		shader.SetBool("u_UsesGLTFPBR", false);
+
+		if (mesh->TexturePaths[5].size() > 0 && mesh->m_MetalnessRoughnessMap.GetID() > 0) {
+
+			shader.SetBool("u_UsesGLTFPBR", true);
+			mesh->m_MetalnessRoughnessMap.Bind(5);
+		}
+
 		const GLClasses::VertexArray& VAO = mesh->m_VertexArray;
 		VAO.Bind();
 

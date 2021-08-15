@@ -16,6 +16,13 @@ namespace Lumen
 		m_VertexBuffer.VertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(Vertex), (void*)(offsetof(Vertex, texcoords)));
 
 		m_VertexArray.Unbind();
+
+		TexturePaths[0] = "";
+		TexturePaths[1] = "";
+		TexturePaths[2] = "";
+		TexturePaths[3] = "";
+		TexturePaths[4] = "";
+		TexturePaths[5] = "";
 	}
 
 	void Mesh::Buffer()

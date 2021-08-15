@@ -222,6 +222,7 @@
   <ItemGroup>
     <None Include="Core\Shaders\BasicFrag.glsl" />
     <None Include="Core\Shaders\BasicVert.glsl" />
+    <None Include="Core\Shaders\ColorPass.glsl" />
     <None Include="Core\Shaders\FBOFrag.glsl" />
     <None Include="Core\Shaders\FBOVert.glsl" />
     <None Include="Core\Shaders\GeometryFrag.glsl" />

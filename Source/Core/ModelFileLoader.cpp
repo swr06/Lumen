@@ -55,16 +55,25 @@ namespace Lumen
 				_mesh->TexturePaths[1] = pth;
 			}
 
-			if (mat->GetTexture(aiTextureType_METALNESS, 0, &metallic_texture) == aiReturn_SUCCESS)
+
+			if (mat->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &metallic_texture) == aiReturn_SUCCESS)
 			{
 				std::string pth = texture_path + "/" + metallic_texture.C_Str();
-				_mesh->TexturePaths[3] = pth;
+				_mesh->TexturePaths[5] = pth;
 			}
 
-			if (mat->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &roughness_texture) == aiReturn_SUCCESS)
-			{
-				std::string pth = texture_path + "/" + roughness_texture.C_Str();
-				_mesh->TexturePaths[2] = pth;
+			else {
+				if (mat->GetTexture(aiTextureType_METALNESS, 0, &metallic_texture) == aiReturn_SUCCESS)
+				{
+					std::string pth = texture_path + "/" + metallic_texture.C_Str();
+					_mesh->TexturePaths[3] = pth;
+				}
+
+				if (mat->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &roughness_texture) == aiReturn_SUCCESS)
+				{
+					std::string pth = texture_path + "/" + roughness_texture.C_Str();
+					_mesh->TexturePaths[2] = pth;
+				}
 			}
 
 			if (mat->GetTexture(aiTextureType_AMBIENT_OCCLUSION, 0, &ao_texture) == aiReturn_SUCCESS)
@@ -239,6 +248,7 @@ namespace Lumen
 					e.m_RoughnessMap.CreateTexture(e.TexturePaths[2], false, true);
 					e.m_MetalnessMap.CreateTexture(e.TexturePaths[3], false, true);
 					e.m_AmbientOcclusionMap.CreateTexture(e.TexturePaths[4], false, true);
+					e.m_MetalnessRoughnessMap.CreateTexture(e.TexturePaths[5], false, true);
 				}
 			}
 
