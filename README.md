@@ -22,6 +22,7 @@ Lumen is a 3D renderer made by me. I picked this name a long time ago, it has no
 - Volumetric Fog 
 - Color Dithering 
 - Tonemapping
+- Basic Alpha Blending
 
 # Possible Features 
 
