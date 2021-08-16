@@ -10,6 +10,7 @@ Lumen is a 3D renderer made by me. I picked this name a long time ago, it has no
 - SSGI (Screen Space Global Illumination)
 - SSSR (Sthochastic Screen Space Reflections)
 - VXGI (Voxel GI)
+- SVGF Spatial filtering for indirect diffuse, specialized filter for specular.
 - Voxel Manhattan Distance Field Acceleration
 - VXAO (Voxel Ambient Occlusion)
 - Voxel Reflections (Importance Sampled GGX, Physically based)
