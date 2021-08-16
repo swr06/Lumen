@@ -231,6 +231,9 @@
     <None Include="Core\Shaders\ColorPass.glsl" />
     <None Include="Core\Shaders\DepthFrag.glsl" />
     <None Include="Core\Shaders\DepthVert.glsl" />
+    <None Include="Core\Shaders\DistanceFields\ManhattanDistanceX.comp" />
+    <None Include="Core\Shaders\DistanceFields\ManhattanDistanceY.comp" />
+    <None Include="Core\Shaders\DistanceFields\ManhattanDistanceZ.comp" />
     <None Include="Core\Shaders\FBOFrag.glsl" />
     <None Include="Core\Shaders\FBOVert.glsl" />
     <None Include="Core\Shaders\GeometryFrag.glsl" />

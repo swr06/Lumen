@@ -46,6 +46,9 @@
     <Filter Include="Source Files\Lumen\Lumen-Core\Lumen-Shaders\Voxelization">
       <UniqueIdentifier>{0acd131e-00c1-4bb3-ba36-f439d4cde85f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Lumen\Lumen-Core\Lumen-Shaders\Distance Fields">
+      <UniqueIdentifier>{cf3f6818-d3f7-4f8e-9b1c-98ced14744da}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\imgui\imconfig.h">
@@ -306,6 +309,15 @@
     </None>
     <None Include="Core\Shaders\Voxelization\ClearData.comp">
       <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\Voxelization</Filter>
+    </None>
+    <None Include="Core\Shaders\DistanceFields\ManhattanDistanceX.comp">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\Distance Fields</Filter>
+    </None>
+    <None Include="Core\Shaders\DistanceFields\ManhattanDistanceY.comp">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\Distance Fields</Filter>
+    </None>
+    <None Include="Core\Shaders\DistanceFields\ManhattanDistanceZ.comp">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\Distance Fields</Filter>
     </None>
   </ItemGroup>
 </Project>

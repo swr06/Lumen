@@ -215,10 +215,19 @@ void Lumen::StartPipeline()
 		RenderEntity(MainModel, GBufferShader);
 		UnbindEverything();
 
-		if (app.GetCurrentFrame() % 16 == 0)
+		// Voxelization : 
+		int UpdateFreq = 30;
+
+		if (app.GetCurrentFrame() % UpdateFreq == 0)
 		{
 			// Voxelize : 
 			MainVoxelVolume.VoxelizeScene(&Camera, Shadowmap.GetDepthTexture(), SunDirection, { &MainModel });
+		}
+
+		if (app.GetCurrentFrame() % (UpdateFreq+1) == 0)
+		{
+			// Gen DF 
+			MainVoxelVolume.GenerateDistanceField();
 		}
 		
 		// Post processing passes here : 
