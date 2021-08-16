@@ -1,5 +1,5 @@
 # Lumen
-Lumen is a 3D renderer
+Lumen is a 3D renderer made by me. I picked this name a long time ago, it has nothing to do with unreal.
 
 # Features Planned
 
