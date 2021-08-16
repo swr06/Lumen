@@ -176,6 +176,7 @@
     <ClInclude Include="Core\Utils\Random.h" />
     <ClInclude Include="Core\Utils\Timer.h" />
     <ClInclude Include="Core\Utils\Vertex.h" />
+    <ClInclude Include="Core\Voxelizer.h" />
     <ClInclude Include="Dependencies\imgui\imconfig.h" />
     <ClInclude Include="Dependencies\imgui\imgui.h" />
     <ClInclude Include="Dependencies\imgui\imgui_impl_glfw.h" />
@@ -211,6 +212,7 @@
     <ClCompile Include="Core\Pipeline.cpp" />
     <ClCompile Include="Core\ShaderManager.cpp" />
     <ClCompile Include="Core\ShadowRenderer.cpp" />
+    <ClCompile Include="Core\Voxelizer.cpp" />
     <ClCompile Include="Dependencies\glad\src\glad.c" />
     <ClCompile Include="Dependencies\imgui\imgui.cpp" />
     <ClCompile Include="Dependencies\imgui\imgui_demo.cpp">
@@ -233,6 +235,10 @@
     <None Include="Core\Shaders\FBOVert.glsl" />
     <None Include="Core\Shaders\GeometryFrag.glsl" />
     <None Include="Core\Shaders\GeometryVert.glsl" />
+    <None Include="Core\Shaders\Voxelization\ClearData.comp" />
+    <None Include="Core\Shaders\Voxelization\Voxelization.frag" />
+    <None Include="Core\Shaders\Voxelization\Voxelization.geom" />
+    <None Include="Core\Shaders\Voxelization\Voxelization.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

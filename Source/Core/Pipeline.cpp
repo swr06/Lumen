@@ -12,6 +12,7 @@
 #include "GLClasses/DepthBuffer.h"
 #include "ShadowRenderer.h"
 #include "GLClasses/CubeTextureMap.h"
+#include "Voxelizer.h"
 
 #include <string>
 
@@ -130,6 +131,8 @@ void Lumen::StartPipeline()
 	GLClasses::Texture BlueNoise;
 	GLClasses::CubeTextureMap Skymap;
 
+	VoxelVolume MainVoxelVolume;
+
 	Skymap.CreateCubeTextureMap(
 		{
 		"Res/Skymap/right.bmp",
@@ -142,6 +145,8 @@ void Lumen::StartPipeline()
 	);
 
 	BlueNoise.CreateTexture("Res/blue_noise.png", false, false);
+
+	MainVoxelVolume.CreateVoxelVolume();
 
 	{
 		unsigned long long CurrentFrame = 0;
@@ -210,6 +215,12 @@ void Lumen::StartPipeline()
 		RenderEntity(MainModel, GBufferShader);
 		UnbindEverything();
 
+		if (app.GetCurrentFrame() % 16 == 0)
+		{
+			// Voxelize : 
+			MainVoxelVolume.VoxelizeScene(&Camera, Shadowmap.GetDepthTexture(), SunDirection, { &MainModel });
+		}
+		
 		// Post processing passes here : 
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_DEPTH_TEST);
