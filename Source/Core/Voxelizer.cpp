@@ -131,3 +131,12 @@ void Lumen::VoxelVolume::GenerateDistanceField()
 
 	std::cout << "\nFinished Generating Distance Field!\n";
 }
+
+void Lumen::VoxelVolume::Recompile()
+{
+	m_Voxelizer.Recompile();
+	m_ClearShader.Recompile();
+	m_DistanceShaderX.Recompile();
+	m_DistanceShaderY.Recompile();
+	m_DistanceShaderZ.Recompile();
+}

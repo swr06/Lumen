@@ -25,8 +25,11 @@ Lumen::FPSCamera Camera(90.0f, 800.0f / 600.0f);
 static bool vsync = false;
 static float SunTick = 50.0f;
 static glm::vec3 SunDirection = glm::vec3(0.1f, -1.0f, 0.1f);
+static glm::vec3 VoxelizationPosition;
 
 static float IndirectTraceResolution = 0.25f;
+
+
 
 class RayTracerApp : public Lumen::Application
 {
@@ -48,7 +51,7 @@ public:
 		glfwSwapInterval((int)vsync);
 
 		GLFWwindow* window = GetWindow();
-		float camera_speed = 0.69f; // nice
+		float camera_speed = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) ? 2.6f : 1.0f; 
 
 		if (GetCursorLocked()) {
 			if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -121,6 +124,19 @@ void UnbindEverything() {
 	glUseProgram(0);
 }
 
+float Align(float value, float size)
+{
+	return std::floor(value / size) * size;
+}
+
+glm::vec3 AlignVec3(const glm::vec3& v, const glm::vec3& a)
+{
+	return glm::vec3(
+		Align(v.x, a.x), Align(v.y, a.y), Align(v.z, a.z)
+	);
+}
+
+
 GLClasses::Framebuffer GBuffer(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true},  {GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, false, false} }, false, true);
 GLClasses::Framebuffer LightingPass(16, 16, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, false, false);
 GLClasses::Framebuffer IndirectLighting(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
@@ -184,6 +200,11 @@ void Lumen::StartPipeline()
 	GLClasses::Shader& FinalShader = ShaderManager::GetShader("FINAL");
 	GLClasses::Shader& IndirectRT = ShaderManager::GetShader("INDIRECT_RT");
 
+
+	glm::mat4 CurrentProjection, CurrentView;
+	glm::mat4 PreviousProjection, PreviousView;
+	glm::vec3 CurrentPosition, PreviousPosition;
+	glm::vec3 CurrentAlignedPosition, PreviousAlignedPosition;
 	
 
 	app.SetCursorLocked(true);
@@ -203,6 +224,20 @@ void Lumen::StartPipeline()
 
 		// App update 
 		app.OnUpdate();
+
+		PreviousProjection = CurrentProjection;
+		PreviousView = CurrentView;
+		PreviousPosition = CurrentPosition;
+		PreviousAlignedPosition = CurrentAlignedPosition;
+		CurrentProjection = Camera.GetProjectionMatrix();
+		CurrentView = Camera.GetViewMatrix();
+		CurrentPosition = Camera.GetPosition();
+		CurrentAlignedPosition = AlignVec3(CurrentPosition, glm::vec3(12.0f));
+
+		if (glfwGetKey(app.GetWindow(), GLFW_KEY_F2))
+		{
+			MainVoxelVolume.Recompile();
+		}
 
 		if (app.GetCurrentFrame() % 8 == 0)
 		{
@@ -228,16 +263,16 @@ void Lumen::StartPipeline()
 		// Voxelization : 
 		int UpdateFreq = 30;
 
-		if (app.GetCurrentFrame() % UpdateFreq == 0)
+		if (app.GetCurrentFrame() % UpdateFreq == 0 || CurrentAlignedPosition != PreviousAlignedPosition)
 		{
 			// Voxelize : 
 			MainVoxelVolume.VoxelizeScene(&Camera, Shadowmap.GetDepthTexture(), SunDirection, { &MainModel });
-		}
 
-		if (app.GetCurrentFrame() % (UpdateFreq+1) == 0)
-		{
+
 			// Gen DF 
 			MainVoxelVolume.GenerateDistanceField();
+
+			VoxelizationPosition = Camera.GetPosition();
 		}
 		
 		// Post processing passes here : 
@@ -268,6 +303,7 @@ void Lumen::StartPipeline()
 		IndirectRT.SetVector2f("u_Dims", glm::vec2(app.GetWidth(), app.GetHeight()));
 		IndirectRT.SetVector3f("u_LightDirection", SunDirection);
 		IndirectRT.SetVector3f("u_ViewerPosition", Camera.GetPosition());
+		IndirectRT.SetVector3f("u_VoxelizationPosition", VoxelizationPosition);
 
 		IndirectRT.SetFloat("u_Time", glfwGetTime());
 		IndirectRT.SetInteger("WORLD_SIZE_X", VOXEL_VOLUME_X);
@@ -278,7 +314,7 @@ void Lumen::StartPipeline()
 		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(0));
 
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(1));
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(2));
 
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(3));

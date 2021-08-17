@@ -17,6 +17,8 @@ uniform samplerCube u_Skymap;
 uniform sampler3D u_VoxelVolume;
 uniform sampler3D u_VoxelDFVolume;
 
+uniform vec3 u_VoxelizationPosition;
+
 uniform vec3 u_ViewerPosition;
 uniform vec3 u_LightDirection;
 uniform mat4 u_InverseView;
@@ -46,7 +48,7 @@ vec3 cosWeightedRandomHemisphereDirection(const vec3 n);
 float VoxelTraversalDF(vec3 origin, vec3 direction, inout vec3 normal, inout vec4 VoxelData, in int dist);
 vec3 WorldPosFromCoord(vec2 txc);
 vec3 WorldPosFromDepth(float depth, vec2 txc);
-
+bool voxel_traversal(vec3 origin, vec3 direction, inout vec4 block, out vec3 normal, out vec3 world_pos, int dist);
 
 // Simplified BRDF
 vec3 CalculateDirectionalLight(in vec3 world_pos, in vec3 light_dir, vec3 radiance, in vec3 albedo, in vec3 normal, in float shadow)
@@ -88,21 +90,21 @@ float ComputeDirectionalShadow(vec3 WorldPosition, vec3 N)
 
     float Depth = ProjectionCoordinates.z;
 	float Bias = max(0.00025f * (1.0f - dot(N, u_LightDirection)), 0.0005f);  
-	return float(smoothfilter(u_ShadowTexture, ProjectionCoordinates.xy).x < ProjectionCoordinates.z - Bias);
+	return float(smoothfilter(u_ShadowTexture, ProjectionCoordinates.xy).x < ProjectionCoordinates.z - 0.005);
 }
 
 // Returns direct lighting for a single point : 
 vec3 GetDirectLighting(vec3 p, vec3 n, vec4 a) 
 {
-	const vec3 SUN_COLOR = vec3(10.0f);
-	return CalculateDirectionalLight(p, u_LightDirection, SUN_COLOR, a.xyz, n, ComputeDirectionalShadow(p,n));
+	const vec3 SUN_COLOR = vec3(100.0f);
+	return CalculateDirectionalLight((p + u_VoxelizationPosition) - 128.0f, u_LightDirection, SUN_COLOR, a.xyz, n, ComputeDirectionalShadow(p,n));
 }
 
 // Gets the shading for a single ray 
 vec3 GetBlockRayColor(in Ray r, out vec3 pos, out vec3 out_n)
 {
 	vec4 data = vec4(0.0f);
-
+	
 	float T = VoxelTraversalDF(r.Origin, r.Direction, out_n, data, MAX_VOXEL_DIST);
 	bool Intersect = T > 0.0f;
 	pos = r.Origin + (r.Direction * T);
@@ -120,7 +122,7 @@ vec3 GetBlockRayColor(in Ray r, out vec3 pos, out vec3 out_n)
 
 vec4 CalculateDiffuse(in vec3 initial_origin, in vec3 input_normal, out vec3 dir)
 {
-	float bias = 0.255f;
+	const float bias = sqrt(2.0f) * 2.2f;
 	Ray new_ray = Ray(initial_origin + input_normal * bias, cosWeightedRandomHemisphereDirection(input_normal));
 
 	vec3 total_color = vec3(0.0f);;
@@ -129,7 +131,7 @@ vec4 CalculateDiffuse(in vec3 initial_origin, in vec3 input_normal, out vec3 dir
 	vec3 Normal;
 	float ao = 1.0f;
 
-	for (int i = 0 ; i < 2 ; i++)
+	for (int i = 0 ; i < 1 ; i++)
 	{
 		vec3 tangent_normal;
 		total_color += GetBlockRayColor(new_ray, Position, Normal);
@@ -169,10 +171,11 @@ void main()
 		return;
 	}
 
-	vec3 WorldPosition = WorldPosFromDepth(Depth, v_TexCoords).xyz;
+	vec3 WorldPosition = WorldPosFromDepth(Depth, v_TexCoords).xyz - u_VoxelizationPosition;
+	WorldPosition += 128.0f;
 	vec3 Normal = texture(u_NormalTexture, v_TexCoords).xyz;
 	vec3 IndirectDiffuse = vec3(0.0f);
-	const int SPP = 8;
+	const int SPP = 1;
 	vec4 AccumulatedDiffuse = vec4(0.0f);
 
 	for (int s = 0 ; s < SPP ; s++) 
@@ -356,4 +359,105 @@ float VoxelTraversalDF(vec3 origin, vec3 direction, inout vec3 normal, inout vec
 	}
 
 	return -1.0f;
+}
+
+
+
+
+bool voxel_traversal(vec3 origin, vec3 direction, inout vec4 block, out vec3 normal, out vec3 world_pos, int dist)
+{
+	const vec3 BLOCK_CALCULATED_NORMALS[6] = vec3[]
+	(
+			vec3(1.0, 0.0, 0.0),
+			vec3(-1.0, 0.0, 0.0),
+			vec3(0.0, 1.0, 0.0),
+			vec3(0.0, -1.0, 0.0),
+			vec3(0.0, 0.0, 1.0),
+			vec3(0.0, 0.0, -1.0)
+	);
+	
+	world_pos = origin;
+
+	vec3 Temp;
+	vec3 VoxelCoord; 
+	vec3 FractPosition;
+
+	Temp.x = direction.x > 0.0 ? 1.0 : 0.0;
+	Temp.y = direction.y > 0.0 ? 1.0 : 0.0;
+	Temp.z = direction.z > 0.0 ? 1.0 : 0.0;
+
+	vec3 plane = floor(world_pos + Temp);
+
+	for (int x = 0; x < dist; x++)
+	{
+		if (!IsInVolume(world_pos))
+		{
+			break;
+		}
+
+		vec3 Next = (plane - world_pos) / direction;
+		int side = 0;
+
+		if (Next.x < min(Next.y, Next.z)) 
+		{
+			world_pos += direction * Next.x;
+			world_pos.x = plane.x;
+			plane.x += sign(direction.x);
+			side = 0;
+		}
+
+		else if (Next.y < Next.z) 
+		{
+			world_pos += direction * Next.y;
+			world_pos.y = plane.y;
+			plane.y += sign(direction.y);
+			side = 1;
+		}
+
+		else 
+		{
+			world_pos += direction * Next.z;
+			world_pos.z = plane.z;
+			plane.z += sign(direction.z);
+			side = 2;
+		}
+
+		VoxelCoord = (plane - Temp);
+
+		int Side = ((side + 1) * 2) - 1;
+
+		if (side == 0) 
+		{
+			if (world_pos.x - VoxelCoord.x > 0.5)
+			{
+				Side = 0;
+			}
+		}
+
+		else if (side == 1)
+		{
+			if (world_pos.y - VoxelCoord.y > 0.5)
+			{
+				Side = 2;
+			}
+		}
+
+		else 
+		{
+			if (world_pos.z - VoxelCoord.z > 0.5)
+			{
+				Side = 4;
+			}
+		}
+
+		normal = BLOCK_CALCULATED_NORMALS[Side];
+		block = GetVoxel(ivec3(VoxelCoord.xyz));
+
+		if (block.w > 0.0001)
+		{
+			return true; 
+		}
+	}
+
+	return false;
 }
