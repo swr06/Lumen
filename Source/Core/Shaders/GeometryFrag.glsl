@@ -2,7 +2,8 @@
 
 layout (location = 0) out vec3 o_Albedo;
 layout (location = 1) out vec3 o_Normal;
-layout (location = 2) out vec3 o_PBR;
+layout (location = 2) out vec3 o_NormalRaw;
+layout (location = 3) out vec3 o_PBR;
 
 uniform sampler2D u_AlbedoMap;
 uniform sampler2D u_NormalMap;
@@ -21,6 +22,7 @@ void main()
 {
 	o_Albedo = texture(u_AlbedoMap, v_TexCoords).xyz;
 	o_Normal = v_TBNMatrix * (texture(u_NormalMap, v_TexCoords).xyz * 2.0f - 1.0f);
+	o_NormalRaw = v_Normal;
 
 	if (u_UsesGLTFPBR) {
 		o_PBR = vec3(texture(u_MetalnessRoughnessMap, v_TexCoords).yx, 1.0f);

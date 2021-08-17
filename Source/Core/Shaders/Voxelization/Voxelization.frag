@@ -18,9 +18,15 @@ void main()
 		g_WorldPosition.y < float(VoxelVolumeSize.y) &&
 		g_WorldPosition.z < float(VoxelVolumeSize.z))
 	{
-		vec3 EstimatedAverageAlbedo = textureLod(u_AlbedoMap, vec2(0.5f), 8.0f).xyz;
+		// Estimate albedo from sampling a lower lod at a few coords
+		// this can be precomputed but whatever 
+		vec3 EstimatedAverageAlbedo = textureLod(u_AlbedoMap, vec2(0.5f), 8.0f).xyz +
+									  textureLod(u_AlbedoMap, vec2(0.25f), 8.0f).xyz +
+									  textureLod(u_AlbedoMap, vec2(0.75f), 8.0f).xyz + 
+									  textureLod(u_AlbedoMap, vec2(1.0f), 8.0f).xyz +
+									  textureLod(u_AlbedoMap, vec2(0.0f), 8.0f).xyz;
+		EstimatedAverageAlbedo /= 5.0f;
 		vec3 Color = EstimatedAverageAlbedo * 2.0f;
-		float SunDiffuse = max(0.01f, dot(g_Normal, u_SunDirection));
 		vec3 Voxel = (g_WorldPosition / vec3(VoxelVolumeSize)) * 0.5f + 0.5f;
 		ivec3 StoreLoc = ivec3(Voxel * VoxelVolumeSize);
 		imageStore(o_VoxelVolume, StoreLoc, vec4(Color, 1.0f));

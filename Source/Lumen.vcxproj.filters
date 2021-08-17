@@ -49,6 +49,9 @@
     <Filter Include="Source Files\Lumen\Lumen-Core\Lumen-Shaders\Distance Fields">
       <UniqueIdentifier>{cf3f6818-d3f7-4f8e-9b1c-98ced14744da}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Lumen\Lumen-Core\Lumen-Shaders\RayTracing">
+      <UniqueIdentifier>{ed394e7f-cde6-4eef-a756-7eb8d8f48721}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\imgui\imconfig.h">
@@ -318,6 +321,9 @@
     </None>
     <None Include="Core\Shaders\DistanceFields\ManhattanDistanceZ.comp">
       <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\Distance Fields</Filter>
+    </None>
+    <None Include="Core\Shaders\Raytracing\IndirectRayTrace.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\RayTracing</Filter>
     </None>
   </ItemGroup>
 </Project>

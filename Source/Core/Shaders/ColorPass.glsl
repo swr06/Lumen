@@ -11,6 +11,8 @@ uniform sampler2D u_PBRTexture;
 uniform sampler2D u_DepthTexture;
 uniform sampler2D u_ShadowTexture;
 uniform sampler2D u_BlueNoise;
+uniform sampler2D u_IndirectDiffuse;
+uniform sampler2D u_VXAO;
 uniform samplerCube u_Skymap;
 
 uniform vec3 u_ViewerPosition;
@@ -96,6 +98,7 @@ void main()
 	vec3 DirectLighting = CalculateDirectionalLight(WorldPosition, normalize(u_LightDirection), SUN_COLOR, Albedo, Normal, RoughnessMetalness, DirectionalShadow).xyz;
 	vec3 AmbientTerm = (Albedo * 0.1f);
 	o_Color = AmbientTerm + DirectLighting;
+	o_Color = vec3(texture(u_IndirectDiffuse, v_TexCoords).xyz);
 }
 
 vec4 smoothfilter(in sampler2D tex, in vec2 uv) 

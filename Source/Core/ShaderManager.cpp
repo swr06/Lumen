@@ -9,6 +9,7 @@ void Lumen::ShaderManager::CreateShaders()
 	AddShader("LIGHTING_PASS", "Core/Shaders/FBOVert.glsl", "Core/Shaders/ColorPass.glsl");
 	AddShader("FINAL", "Core/Shaders/FBOVert.glsl", "Core/Shaders/FBOFrag.glsl");
 	AddShader("DEPTH", "Core/Shaders/DepthVert.glsl", "Core/Shaders/DepthFrag.glsl");
+	AddShader("INDIRECT_RT", "Core/Shaders/FBOVert.glsl", "Core/Shaders/Raytracing/IndirectRayTrace.glsl");
 }
 
 void Lumen::ShaderManager::AddShader(const std::string& name, const std::string& vert, const std::string& frag, const std::string& geo)
