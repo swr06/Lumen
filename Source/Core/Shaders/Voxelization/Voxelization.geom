@@ -1,6 +1,6 @@
 #version 450 core
 
-#define VOXEL_SIZE 2 
+#define VOXEL_SIZE 1
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;

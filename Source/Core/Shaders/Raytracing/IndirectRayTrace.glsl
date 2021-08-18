@@ -113,7 +113,8 @@ vec3 GetBlockRayColor(in Ray r, out vec3 pos, out vec3 out_n)
 
 	if (Intersect) 
 	{ 
-		return GetDirectLighting(pos, out_n, data);
+		return data.xyz * 1.0f;
+		//return GetDirectLighting(pos, out_n, data);
 	} 
 
 	else 
@@ -174,38 +175,48 @@ void main()
 
 	float Depth = texture(u_DepthTexture, v_TexCoords).x;
 	vec3 RayDirection = normalize(GetRayDirectionAt(v_TexCoords));
-	vec3 WorldPositionSample = WorldPosFromDepth(Depth, v_TexCoords).xyz ;
-	vec3 VoxelPosition = (WorldPositionSample - u_VoxelizationPosition) + 128.0f;
-	ivec3 VoxelVolumeSize = ivec3(textureSize(u_VoxelVolume, 0));
+	//vec3 WorldPositionSample = WorldPosFromDepth(Depth, v_TexCoords).xyz ;
+	//ivec3 VoxelVolumeSize = ivec3(textureSize(u_VoxelVolume, 0));
+	//vec3 VoxelPosition = (WorldPositionSample - u_ViewerPosition);
+	//VoxelPosition /= 256.0f;
+	//VoxelPosition += 128.0f;
+	//
+	//if (Depth > 0.9995f) {
+	//	o_IndirectDiffuse = texture(u_Skymap, normalize(vec3(0.5))).xyz;
+	//	return;
+	//}
+	//
+	//if (VoxelPosition.x >= float(VoxelVolumeSize.x / float(VOXEL_SIZE)) &&
+	//	VoxelPosition.y >= float(VoxelVolumeSize.y / float(VOXEL_SIZE)) &&
+	//	VoxelPosition.z >= float(VoxelVolumeSize.z / float(VOXEL_SIZE)))
+	//{
+	//	o_IndirectDiffuse = texture(u_Skymap, normalize(vec3(0.5))).xyz;
+	//	return;
+	//}
+	//
+	//
+	//vec3 Normal = texture(u_NormalTexture, v_TexCoords).xyz;
+	//vec3 IndirectDiffuse = vec3(0.0f);
+	//const int SPP = 1;
+	//vec4 AccumulatedDiffuse = vec4(0.0f);
+	//
+	//for (int s = 0 ; s < SPP ; s++) 
+	//{
+	//	vec3 RayDirection;
+	//	AccumulatedDiffuse += CalculateDiffuse(VoxelPosition.xyz, Normal.xyz, RayDirection);
+	//}
+	//
+	//IndirectDiffuse.xyz = AccumulatedDiffuse.xyz / float(SPP);
+	//o_IndirectDiffuse = IndirectDiffuse;
+	//o_VXAO = AccumulatedDiffuse.w / float(SPP);
 
-	if (Depth > 0.9995f) {
-		o_IndirectDiffuse = texture(u_Skymap, normalize(vec3(0.5))).xyz;
-		return;
-	}
 
-	if (VoxelPosition.x >= float(VoxelVolumeSize.x / float(VOXEL_SIZE)) &&
-		VoxelPosition.y >= float(VoxelVolumeSize.y / float(VOXEL_SIZE)) &&
-		VoxelPosition.z >= float(VoxelVolumeSize.z / float(VOXEL_SIZE)))
-	{
-		o_IndirectDiffuse = texture(u_Skymap, normalize(vec3(0.5))).xyz;
-		return;
-	}
-
-	
-	vec3 Normal = texture(u_NormalTexture, v_TexCoords).xyz;
-	vec3 IndirectDiffuse = vec3(0.0f);
-	const int SPP = 1;
-	vec4 AccumulatedDiffuse = vec4(0.0f);
-
-	for (int s = 0 ; s < SPP ; s++) 
-	{
-		vec3 RayDirection;
-		AccumulatedDiffuse += CalculateDiffuse(VoxelPosition.xyz, Normal.xyz, RayDirection);
-	}
-
-	IndirectDiffuse.xyz = AccumulatedDiffuse.xyz / float(SPP);
-	o_IndirectDiffuse = IndirectDiffuse;
-	o_VXAO = AccumulatedDiffuse.w / float(SPP);
+	//
+	//float VoxelTraversalDF(vec3 origin, vec3 direction, inout vec3 normal, inout vec4 VoxelData, in int dist) 
+	vec3 N; 
+	vec4 data;
+	float T = VoxelTraversalDF((u_ViewerPosition / 256.0f) + vec3(128.0f, 128.0f, 128.0f), RayDirection, N, data, 500);
+	o_IndirectDiffuse = data.xyz;
 }
 
 vec2 hash2() 

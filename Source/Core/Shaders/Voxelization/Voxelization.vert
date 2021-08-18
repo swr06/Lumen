@@ -1,6 +1,6 @@
 #version 450 core
 
-#define VOXEL_SIZE 2
+#define VOXEL_SIZE 1
 
 layout (location = 0) in vec3 a_Position;
 layout (location = 1) in uvec3 a_NormalTangentData;

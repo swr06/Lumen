@@ -1,6 +1,6 @@
 #version 450 core
 
-#define VOXEL_SIZE 2
+#define VOXEL_SIZE 1
 
 layout(RGBA8, binding = 0) uniform image3D o_VoxelVolume;
 
