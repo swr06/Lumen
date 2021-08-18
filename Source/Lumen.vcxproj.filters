@@ -52,6 +52,9 @@
     <Filter Include="Source Files\Lumen\Lumen-Core\Lumen-Shaders\RayTracing">
       <UniqueIdentifier>{ed394e7f-cde6-4eef-a756-7eb8d8f48721}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Lumen\Lumen-Core\Lumen-Shaders\Filtering">
+      <UniqueIdentifier>{a30712dd-54cf-49ad-9928-1cc454a461df}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\imgui\imconfig.h">
@@ -324,6 +327,9 @@
     </None>
     <None Include="Core\Shaders\Raytracing\IndirectRayTrace.glsl">
       <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\RayTracing</Filter>
+    </None>
+    <None Include="Core\Shaders\Filtering\BasicTemporalFilter.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\Filtering</Filter>
     </None>
   </ItemGroup>
 </Project>

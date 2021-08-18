@@ -236,6 +236,7 @@
     <None Include="Core\Shaders\DistanceFields\ManhattanDistanceZ.comp" />
     <None Include="Core\Shaders\FBOFrag.glsl" />
     <None Include="Core\Shaders\FBOVert.glsl" />
+    <None Include="Core\Shaders\Filtering\BasicTemporalFilter.glsl" />
     <None Include="Core\Shaders\GeometryFrag.glsl" />
     <None Include="Core\Shaders\GeometryVert.glsl" />
     <None Include="Core\Shaders\Raytracing\IndirectRayTrace.glsl" />

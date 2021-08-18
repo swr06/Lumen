@@ -1,6 +1,7 @@
-#version 330 core
+#version 450 core
 #define PI 3.14159265359
 #define MAX_VOXEL_DIST (WORLD_SIZE_X+4)
+#define VOXEL_SIZE 1
 
 layout (location = 0) out vec3 o_IndirectDiffuse;
 layout (location = 1) out float o_VXAO;
@@ -97,7 +98,8 @@ float ComputeDirectionalShadow(vec3 WorldPosition, vec3 N)
 vec3 GetDirectLighting(vec3 p, vec3 n, vec4 a) 
 {
 	const vec3 SUN_COLOR = vec3(100.0f);
-	return CalculateDirectionalLight((p + u_VoxelizationPosition) - 128.0f, u_LightDirection, SUN_COLOR, a.xyz, n, ComputeDirectionalShadow(p,n));
+	p = (p + u_VoxelizationPosition) - 128.0f;
+	return CalculateDirectionalLight(p, u_LightDirection, SUN_COLOR, a.xyz, n, ComputeDirectionalShadow(p,n));
 }
 
 // Gets the shading for a single ray 
@@ -158,6 +160,12 @@ vec4 CalculateDiffuse(in vec3 initial_origin, in vec3 input_normal, out vec3 dir
 	return vec4(total_color, ao); 
 }
 
+vec3 GetRayDirectionAt(vec2 screenspace)
+{
+	vec4 clip = vec4(screenspace * 2.0f - 1.0f, -1.0, 1.0);
+	vec4 eye = vec4(vec2(u_InverseProjection * clip), -1.0, 0.0);
+	return vec3(u_InverseView * eye);
+}
 
 void main() 
 {
@@ -165,14 +173,25 @@ void main()
 	HASH2SEED += fract(u_Time) * 100.0f;
 
 	float Depth = texture(u_DepthTexture, v_TexCoords).x;
-	
+	vec3 RayDirection = normalize(GetRayDirectionAt(v_TexCoords));
+	vec3 WorldPositionSample = WorldPosFromDepth(Depth, v_TexCoords).xyz ;
+	vec3 VoxelPosition = (WorldPositionSample - u_VoxelizationPosition) + 128.0f;
+	ivec3 VoxelVolumeSize = ivec3(textureSize(u_VoxelVolume, 0));
+
 	if (Depth > 0.9995f) {
-		o_IndirectDiffuse = vec3(0.0f);
+		o_IndirectDiffuse = texture(u_Skymap, normalize(vec3(0.5))).xyz;
 		return;
 	}
 
-	vec3 WorldPosition = WorldPosFromDepth(Depth, v_TexCoords).xyz - u_VoxelizationPosition;
-	WorldPosition += 128.0f;
+	if (VoxelPosition.x >= float(VoxelVolumeSize.x / float(VOXEL_SIZE)) &&
+		VoxelPosition.y >= float(VoxelVolumeSize.y / float(VOXEL_SIZE)) &&
+		VoxelPosition.z >= float(VoxelVolumeSize.z / float(VOXEL_SIZE)))
+	{
+		o_IndirectDiffuse = texture(u_Skymap, normalize(vec3(0.5))).xyz;
+		return;
+	}
+
+	
 	vec3 Normal = texture(u_NormalTexture, v_TexCoords).xyz;
 	vec3 IndirectDiffuse = vec3(0.0f);
 	const int SPP = 1;
@@ -181,7 +200,7 @@ void main()
 	for (int s = 0 ; s < SPP ; s++) 
 	{
 		vec3 RayDirection;
-		AccumulatedDiffuse += CalculateDiffuse(WorldPosition.xyz, Normal.xyz, RayDirection);
+		AccumulatedDiffuse += CalculateDiffuse(VoxelPosition.xyz, Normal.xyz, RayDirection);
 	}
 
 	IndirectDiffuse.xyz = AccumulatedDiffuse.xyz / float(SPP);

@@ -27,7 +27,8 @@ static float SunTick = 50.0f;
 static glm::vec3 SunDirection = glm::vec3(0.1f, -1.0f, 0.1f);
 static glm::vec3 VoxelizationPosition;
 
-static float IndirectTraceResolution = 0.25f;
+static float IndirectTraceResolution = 0.5f;
+static float MixFactor = 0.975f;
 
 
 
@@ -82,6 +83,7 @@ public:
 		//ImGui::SliderFloat("Sun Time ", &SunTick, 0.1f, 256.0f);
 		ImGui::SliderFloat("Indirect Resolution : ", &IndirectTraceResolution, 0.1f, 1.0f);
 		ImGui::SliderFloat3("Sun Dir : ", &SunDirection[0], -1.0f, 1.0f);
+		ImGui::SliderFloat("Indirect Mix : ", &MixFactor, 0.01f, 0.995);
 	}
 
 	void OnEvent(Lumen::Event e) override
@@ -137,9 +139,17 @@ glm::vec3 AlignVec3(const glm::vec3& v, const glm::vec3& a)
 }
 
 
-GLClasses::Framebuffer GBuffer(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true},  {GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, false, false} }, false, true);
+// GBuffers : 
+GLClasses::Framebuffer GBuffer1(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true},  {GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, false, false} }, false, true);
+GLClasses::Framebuffer GBuffer2(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true},  {GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, false, false} }, false, true);
+
+// Lighting 
 GLClasses::Framebuffer LightingPass(16, 16, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, false, false);
+
+// Indirect : 
 GLClasses::Framebuffer IndirectLighting(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
+GLClasses::Framebuffer IndirectTemporal_1(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true} }, false, false);
+GLClasses::Framebuffer IndirectTemporal_2(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true} }, false, false);
 
 
 void Lumen::StartPipeline()
@@ -199,6 +209,7 @@ void Lumen::StartPipeline()
 	GLClasses::Shader& LightingShader = ShaderManager::GetShader("LIGHTING_PASS");
 	GLClasses::Shader& FinalShader = ShaderManager::GetShader("FINAL");
 	GLClasses::Shader& IndirectRT = ShaderManager::GetShader("INDIRECT_RT");
+	GLClasses::Shader& TemporalFilter = ShaderManager::GetShader("BASIC_TEMPORAL");
 
 
 	glm::mat4 CurrentProjection, CurrentView;
@@ -218,9 +229,17 @@ void Lumen::StartPipeline()
 
 	while (!glfwWindowShouldClose(app.GetWindow()))
 	{
+		auto& GBuffer = (app.GetCurrentFrame() % 2 == 0) ? GBuffer1 : GBuffer2;
+		auto& PrevGBuffer = (app.GetCurrentFrame() % 2 == 0) ? GBuffer2 : GBuffer1;
+		auto& IndirectTemporalCurr = (app.GetCurrentFrame() % 2 == 0) ? IndirectTemporal_1 : IndirectTemporal_2;
+		auto& IndirectTemporalPrev = (app.GetCurrentFrame() % 2 == 0) ? IndirectTemporal_2 : IndirectTemporal_1;
+
 		GBuffer.SetSize(app.GetWidth(), app.GetHeight());
+		PrevGBuffer.SetSize(app.GetWidth(), app.GetHeight());
 		LightingPass.SetSize(app.GetWidth(), app.GetHeight());
 		IndirectLighting.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
+		IndirectTemporalCurr.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
+		IndirectTemporalPrev.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
 
 		// App update 
 		app.OnUpdate();
@@ -340,8 +359,41 @@ void Lumen::StartPipeline()
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		ScreenQuadVAO.Unbind();
 
-		//
-		
+		// Temporal filter 
+
+		TemporalFilter.Use();
+		IndirectTemporalCurr.Bind();
+
+		TemporalFilter.SetInteger("u_CurrentColorTexture", 0);
+		TemporalFilter.SetInteger("u_PreviousColorTexture", 1);
+		TemporalFilter.SetInteger("u_DepthTexture", 2);
+		TemporalFilter.SetInteger("u_PreviousDepthTexture", 3);
+
+		TemporalFilter.SetMatrix4("u_Projection", Camera.GetProjectionMatrix());
+		TemporalFilter.SetMatrix4("u_View", Camera.GetViewMatrix());
+		TemporalFilter.SetMatrix4("u_PrevProjection", PreviousProjection);
+		TemporalFilter.SetMatrix4("u_PrevView", PreviousView);
+		TemporalFilter.SetMatrix4("u_InverseProjection", glm::inverse(Camera.GetProjectionMatrix()));
+		TemporalFilter.SetMatrix4("u_InverseView", glm::inverse(Camera.GetViewMatrix()));
+
+		TemporalFilter.SetFloat("u_MinimumMix", 0.25f);
+		TemporalFilter.SetFloat("u_MaximumMix", MixFactor);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, IndirectLighting.GetTexture(0));
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, IndirectTemporalPrev.GetTexture(0));
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, PrevGBuffer.GetDepthBuffer());
+
+		ScreenQuadVAO.Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		ScreenQuadVAO.Unbind();
 
 		// Lighting pass : 
 
@@ -391,7 +443,7 @@ void Lumen::StartPipeline()
 		glBindTexture(GL_TEXTURE_CUBE_MAP, Skymap.GetID());
 
 		glActiveTexture(GL_TEXTURE7);
-		glBindTexture(GL_TEXTURE_2D, IndirectLighting.GetTexture(0));
+		glBindTexture(GL_TEXTURE_2D, IndirectTemporalCurr.GetTexture(0));
 		glActiveTexture(GL_TEXTURE8);
 		glBindTexture(GL_TEXTURE_2D, IndirectLighting.GetTexture(1));
 
