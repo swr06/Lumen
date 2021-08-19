@@ -54,13 +54,6 @@ vec3 WorldPosFromCoord(vec2 txc);
 vec3 WorldPosFromDepth(float depth, vec2 txc);
 bool voxel_traversal(vec3 origin, vec3 direction, inout vec4 block, out vec3 normal, out vec3 world_pos, int dist);
 
-// Simplified BRDF
-vec3 CalculateDirectionalLight(in vec3 world_pos, in vec3 light_dir, vec3 radiance, in vec3 albedo, in vec3 normal, in float shadow)
-{
-	vec3 DiffuseBRDF = albedo * max(dot(normal, normalize(light_dir)), 0.0f) * (radiance * 1.5f);
-    return DiffuseBRDF * (1.0f - shadow);
-} 
-
 // Returns sample from skymap 
 vec3 GetSkyColorAt(vec3 rd) 
 {
@@ -96,17 +89,20 @@ float ComputeDirectionalShadow(vec3 WorldPosition, vec3 N)
 	return float(smoothfilter(u_ShadowTexture, ProjectionCoordinates.xy).x < ProjectionCoordinates.z - 0.1);
 }
 
+// Simplified BRDF
+vec3 CalculateDirectionalLight(in vec3 world_pos, in vec3 light_dir, vec3 radiance, in vec3 albedo, in vec3 normal, in float shadow)
+{
+	vec3 DiffuseBRDF = albedo * max(dot(normal, normalize(-light_dir)), 0.0f) * (radiance * 1.5f);
+    return DiffuseBRDF * shadow;
+} 
+
 // Returns direct lighting for a single point : 
 vec3 GetDirectLighting(vec3 p, vec3 n, vec4 a) 
 {
-	const vec3 SUN_COLOR = vec3(100.0f);
-	p += u_ViewerPosition;
-	p *= 256.0f;
-	p -= 128.0f;
-	float shadow = ComputeDirectionalShadow(p,n);
-
-	return vec3(0.0);
-	return CalculateDirectionalLight(p, u_LightDirection, SUN_COLOR, a.xyz, n, shadow);
+	const vec3 SUN_COLOR = vec3(2.0f);
+	float shadow = a.w < 0.6f ? 0.0f : 1.0f;
+	shadow = clamp(1.0f - shadow, 0.0f, 1.0f);
+	return clamp(CalculateDirectionalLight(p, u_LightDirection, SUN_COLOR, pow(a.xyz, vec3(1.0f)), n, shadow), 0.0f, 5.0f);
 }
 
 // Gets the shading for a single ray 
@@ -125,7 +121,7 @@ vec3 GetBlockRayColor(in Ray r, out vec3 pos, out vec3 out_n)
 
 	else 
 	{	
-		return sqrt(GetSkyColorAt(r.Direction)) * 1.5f;
+		return GetSkyColorAt(r.Direction);
 	}
 }
 
@@ -143,13 +139,13 @@ vec4 CalculateDiffuse(in vec3 initial_origin, in vec3 input_normal, out vec3 dir
 	for (int i = 0 ; i < 2 ; i++)
 	{
 		vec3 tangent_normal;
-		total_color += GetBlockRayColor(new_ray, Position, Normal) * (1.0f / (i + 1));
+		total_color += GetBlockRayColor(new_ray, Position, Normal);
 		float T = distance(initial_origin, Position);
 		new_ray.Origin = Position + Normal * bias;
 		new_ray.Direction = cosWeightedRandomHemisphereDirection(Normal);
 	}
 	
-	return vec4(total_color, ao); 
+	return vec4(total_color / 2.0f, ao); 
 }
 
 vec3 GetRayDirectionAt(vec2 screenspace)
@@ -401,103 +397,3 @@ float VoxelTraversalDF(vec3 origin, vec3 direction, inout vec3 normal, inout vec
 	return -1.0f;
 }
 
-
-
-
-bool voxel_traversal(vec3 origin, vec3 direction, inout vec4 block, out vec3 normal, out vec3 world_pos, int dist)
-{
-	const vec3 BLOCK_CALCULATED_NORMALS[6] = vec3[]
-	(
-			vec3(1.0, 0.0, 0.0),
-			vec3(-1.0, 0.0, 0.0),
-			vec3(0.0, 1.0, 0.0),
-			vec3(0.0, -1.0, 0.0),
-			vec3(0.0, 0.0, 1.0),
-			vec3(0.0, 0.0, -1.0)
-	);
-	
-	world_pos = origin;
-
-	vec3 Temp;
-	vec3 VoxelCoord; 
-	vec3 FractPosition;
-
-	Temp.x = direction.x > 0.0 ? 1.0 : 0.0;
-	Temp.y = direction.y > 0.0 ? 1.0 : 0.0;
-	Temp.z = direction.z > 0.0 ? 1.0 : 0.0;
-
-	vec3 plane = floor(world_pos + Temp);
-
-	for (int x = 0; x < dist; x++)
-	{
-		if (!IsInVolume(world_pos))
-		{
-			break;
-		}
-
-		vec3 Next = (plane - world_pos) / direction;
-		int side = 0;
-
-		if (Next.x < min(Next.y, Next.z)) 
-		{
-			world_pos += direction * Next.x;
-			world_pos.x = plane.x;
-			plane.x += sign(direction.x);
-			side = 0;
-		}
-
-		else if (Next.y < Next.z) 
-		{
-			world_pos += direction * Next.y;
-			world_pos.y = plane.y;
-			plane.y += sign(direction.y);
-			side = 1;
-		}
-
-		else 
-		{
-			world_pos += direction * Next.z;
-			world_pos.z = plane.z;
-			plane.z += sign(direction.z);
-			side = 2;
-		}
-
-		VoxelCoord = (plane - Temp);
-
-		int Side = ((side + 1) * 2) - 1;
-
-		if (side == 0) 
-		{
-			if (world_pos.x - VoxelCoord.x > 0.5)
-			{
-				Side = 0;
-			}
-		}
-
-		else if (side == 1)
-		{
-			if (world_pos.y - VoxelCoord.y > 0.5)
-			{
-				Side = 2;
-			}
-		}
-
-		else 
-		{
-			if (world_pos.z - VoxelCoord.z > 0.5)
-			{
-				Side = 4;
-			}
-		}
-
-		normal = BLOCK_CALCULATED_NORMALS[Side];
-		block = GetVoxel(ivec3(VoxelCoord.xyz));
-
-		if (block.w > 0.0001)
-		{
-			return true; 
-		}
-	}
-
-	return false;
-}

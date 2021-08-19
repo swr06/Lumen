@@ -13,7 +13,7 @@ namespace Lumen
 	{
 	public : 
 		void CreateVoxelVolume();
-		void VoxelizeScene(FPSCamera* camera, GLuint shadow_map, glm::vec3 sun_dir, std::vector<Entity*> entities);
+		void VoxelizeScene(FPSCamera* camera, GLuint shadow_map, glm::vec3 sun_dir, std::vector<Entity*> entities, glm::mat4 LightVP);
 		void GenerateDistanceField();
 		void Recompile();
 

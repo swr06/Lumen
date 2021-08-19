@@ -99,8 +99,8 @@ void main()
 	vec3 IndirectDiffuse = texture(u_IndirectDiffuse, v_TexCoords).xyz;
 	float VXAO = texture(u_VXAO, v_TexCoords).r;
 	vec3 AmbientTerm = (IndirectDiffuse * Albedo);
-	o_Color = DirectLighting + AmbientTerm ;
-	o_Color = IndirectDiffuse;
+	o_Color = DirectLighting + AmbientTerm;
+	//o_Color = IndirectDiffuse;
 //o_Color = pow(IndirectDiffuse, vec3(3.0f)) * 0.05f ;
 	//o_Color = pow(IndirectDiffuse / 500.0f, vec3(2.2f));
 }

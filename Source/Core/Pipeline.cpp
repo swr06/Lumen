@@ -293,7 +293,7 @@ void Lumen::StartPipeline()
 		if (app.GetCurrentFrame() % UpdateFreq == 0 || CurrentAlignedPosition != PreviousAlignedPosition)
 		{
 			// Voxelize : 
-			MainVoxelVolume.VoxelizeScene(&Camera, Shadowmap.GetDepthTexture(), SunDirection, { &MainModel });
+			MainVoxelVolume.VoxelizeScene(&Camera, Shadowmap.GetDepthTexture(), SunDirection, { &MainModel }, GetLightViewProjection(SunDirection));
 
 
 			// Gen DF 

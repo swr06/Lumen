@@ -38,7 +38,7 @@ void Lumen::VoxelVolume::CreateVoxelVolume()
 	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, VOXEL_VOLUME_X, VOXEL_VOLUME_Y, VOXEL_VOLUME_Z, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 }
 
-void Lumen::VoxelVolume::VoxelizeScene(FPSCamera* camera, GLuint shadow_map, glm::vec3 sun_dir, std::vector<Entity*> entities)
+void Lumen::VoxelVolume::VoxelizeScene(FPSCamera* camera, GLuint shadow_map, glm::vec3 sun_dir, std::vector<Entity*> entities, glm::mat4 LightVP)
 {
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 	glDisable(GL_CULL_FACE);
@@ -57,6 +57,7 @@ void Lumen::VoxelVolume::VoxelizeScene(FPSCamera* camera, GLuint shadow_map, glm
 	m_Voxelizer.Use();
 	glViewport(0, 0, VOXEL_VOLUME_X, VOXEL_VOLUME_Z);
 	m_Voxelizer.SetMatrix4("u_ViewProjection", camera->GetViewProjection());
+	m_Voxelizer.SetMatrix4("u_LightVP", LightVP);
 	m_Voxelizer.SetInteger("u_AlbedoTexture", 0);
 	m_Voxelizer.SetInteger("u_ShadowMap", 6);
 	m_Voxelizer.SetVector3f("u_SunDirection", glm::normalize(sun_dir));
