@@ -112,6 +112,14 @@ public:
 			Lumen::ShaderManager::RecompileShaders();
 		}
 
+		if (e.type == Lumen::EventTypes::KeyPress && e.key == GLFW_KEY_F5)
+		{
+			glm::vec3 SetPosition = glm::vec3(-104.384857, 30.665455, -13.041096);
+			glm::vec3 Front = glm::vec3(0.998306, -0.056693, 0.13069);
+			Camera.SetPosition(SetPosition);
+			Camera.SetFront(Front);
+		}
+
 		if (e.type == Lumen::EventTypes::KeyPress && e.key == GLFW_KEY_V && this->GetCurrentFrame() > 5)
 		{
 			vsync = !vsync;
@@ -328,6 +336,9 @@ void Lumen::StartPipeline()
 		IndirectRT.SetInteger("WORLD_SIZE_X", VOXEL_VOLUME_X);
 		IndirectRT.SetInteger("WORLD_SIZE_Y", VOXEL_VOLUME_Y);
 		IndirectRT.SetInteger("WORLD_SIZE_Z", VOXEL_VOLUME_Z);
+
+		IndirectRT.SetFloat("u_zNear", 0.1f);
+		IndirectRT.SetFloat("u_zFar", 1000.0f);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(0));

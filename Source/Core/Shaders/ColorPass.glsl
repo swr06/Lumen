@@ -99,14 +99,10 @@ void main()
 	vec3 IndirectDiffuse = texture(u_IndirectDiffuse, v_TexCoords).xyz;
 	float VXAO = texture(u_VXAO, v_TexCoords).r;
 	vec3 AmbientTerm = (IndirectDiffuse * Albedo);
-	o_Color = DirectLighting * 2.4f ;
-
-	//if (IndirectDiffuse == vec3(0.0f))
-	//{
-	//	o_Color = IndirectDiffuse ;
-	//
-	//}
-
+	o_Color = DirectLighting + AmbientTerm ;
+	o_Color = IndirectDiffuse;
+//o_Color = pow(IndirectDiffuse, vec3(3.0f)) * 0.05f ;
+	//o_Color = pow(IndirectDiffuse / 500.0f, vec3(2.2f));
 }
 
 vec4 smoothfilter(in sampler2D tex, in vec2 uv) 
