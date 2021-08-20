@@ -321,6 +321,7 @@ void Lumen::StartPipeline()
 
 		IndirectRT.SetInteger("u_VoxelVolume", 7);
 		IndirectRT.SetInteger("u_VoxelDFVolume", 8);
+		IndirectRT.SetInteger("u_PreviousFrameLighting", 9);
 
 		IndirectRT.SetMatrix4("u_Projection", Camera.GetProjectionMatrix());
 		IndirectRT.SetMatrix4("u_View", Camera.GetViewMatrix());
@@ -365,6 +366,9 @@ void Lumen::StartPipeline()
 		glBindTexture(GL_TEXTURE_3D, MainVoxelVolume.m_VoxelVolume);
 		glActiveTexture(GL_TEXTURE8);
 		glBindTexture(GL_TEXTURE_3D, MainVoxelVolume.m_DistanceFieldVolume);
+
+		glActiveTexture(GL_TEXTURE9);
+		glBindTexture(GL_TEXTURE_2D, LightingPass.GetTexture());
 
 		ScreenQuadVAO.Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 6);
