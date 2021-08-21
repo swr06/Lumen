@@ -27,7 +27,7 @@ static float SunTick = 50.0f;
 static glm::vec3 SunDirection = glm::vec3(0.1f, -1.0f, 0.1f);
 static glm::vec3 VoxelizationPosition;
 
-static float IndirectTraceResolution = 0.5f;
+static float IndirectTraceResolution = 0.3f;
 static float MixFactor = 0.975f;
 
 
@@ -52,7 +52,7 @@ public:
 		glfwSwapInterval((int)vsync);
 
 		GLFWwindow* window = GetWindow();
-		float camera_speed = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) ? 2.6f : 1.0f; 
+		float camera_speed = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) ? 3.6f : 2.f; 
 
 		if (GetCursorLocked()) {
 			if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -156,8 +156,11 @@ GLClasses::Framebuffer LightingPass(16, 16, {GL_RGB16F, GL_RGB, GL_FLOAT, true, 
 
 // Indirect : 
 GLClasses::Framebuffer IndirectLighting(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
-GLClasses::Framebuffer IndirectTemporal_1(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true} }, false, false);
-GLClasses::Framebuffer IndirectTemporal_2(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true} }, false, false);
+GLClasses::Framebuffer IndirectTemporal_1(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, false, false}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
+GLClasses::Framebuffer IndirectTemporal_2(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, false, false}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
+GLClasses::Framebuffer IndirectVarianceEstimate(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_R16F, GL_RED, GL_FLOAT , false, false} }, false, false);
+GLClasses::Framebuffer IndirectSpatial_1(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_R16F, GL_RED, GL_FLOAT , false, false}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
+GLClasses::Framebuffer IndirectSpatial_2(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_R16F, GL_RED, GL_FLOAT , false, false}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
 
 
 void Lumen::StartPipeline()
@@ -218,6 +221,9 @@ void Lumen::StartPipeline()
 	GLClasses::Shader& FinalShader = ShaderManager::GetShader("FINAL");
 	GLClasses::Shader& IndirectRT = ShaderManager::GetShader("INDIRECT_RT");
 	GLClasses::Shader& TemporalFilter = ShaderManager::GetShader("BASIC_TEMPORAL");
+	GLClasses::Shader& SVGF_Temporal = ShaderManager::GetShader("SVGF_TEMPORAL");
+	GLClasses::Shader& SVGF_Variance = ShaderManager::GetShader("SVGF_VARIANCE_ESTIMATE");
+	GLClasses::Shader& SVGF_Spatial = ShaderManager::GetShader("SVGF_SPATIAL");
 
 
 	glm::mat4 CurrentProjection, CurrentView;
@@ -245,9 +251,14 @@ void Lumen::StartPipeline()
 		GBuffer.SetSize(app.GetWidth(), app.GetHeight());
 		PrevGBuffer.SetSize(app.GetWidth(), app.GetHeight());
 		LightingPass.SetSize(app.GetWidth(), app.GetHeight());
+		
+		// Indirect lighting 
 		IndirectLighting.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
 		IndirectTemporalCurr.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
 		IndirectTemporalPrev.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
+		IndirectVarianceEstimate.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
+		IndirectSpatial_1.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
+		IndirectSpatial_2.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
 
 		// App update 
 		app.OnUpdate();
@@ -376,39 +387,197 @@ void Lumen::StartPipeline()
 
 		// Temporal filter 
 
-		TemporalFilter.Use();
+		SVGF_Temporal.Use();
 		IndirectTemporalCurr.Bind();
 
-		TemporalFilter.SetInteger("u_CurrentColorTexture", 0);
-		TemporalFilter.SetInteger("u_PreviousColorTexture", 1);
-		TemporalFilter.SetInteger("u_DepthTexture", 2);
-		TemporalFilter.SetInteger("u_PreviousDepthTexture", 3);
+		// Textures
+		SVGF_Temporal.SetInteger("u_CurrentDepthTexture", 0);
+		SVGF_Temporal.SetInteger("u_PreviousDepthTexture", 1);
+		SVGF_Temporal.SetInteger("u_CurrentLighting", 2);
+		SVGF_Temporal.SetInteger("u_PreviousLighting", 3);
+		SVGF_Temporal.SetInteger("u_CurrentNormalTexture", 4);
+		SVGF_Temporal.SetInteger("u_PreviousNormalTexture", 5);
+		SVGF_Temporal.SetInteger("u_PreviousUtility", 6);
+		SVGF_Temporal.SetInteger("u_CurrentAO", 7);
+		SVGF_Temporal.SetInteger("u_PreviousAO", 8);
+		
+		// Matrices
+		SVGF_Temporal.SetMatrix4("u_Projection", Camera.GetProjectionMatrix());
+		SVGF_Temporal.SetMatrix4("u_View", Camera.GetViewMatrix());
+		SVGF_Temporal.SetMatrix4("u_PrevProjection", PreviousProjection);
+		SVGF_Temporal.SetMatrix4("u_PrevView", PreviousView);
+		SVGF_Temporal.SetMatrix4("u_PrevInverseProjection", glm::inverse(PreviousProjection));
+		SVGF_Temporal.SetMatrix4("u_PrevInverseView", glm::inverse(PreviousView));
+		SVGF_Temporal.SetMatrix4("u_InverseProjection", glm::inverse(Camera.GetProjectionMatrix()));
+		SVGF_Temporal.SetMatrix4("u_InverseView", glm::inverse(Camera.GetViewMatrix()));
 
-		TemporalFilter.SetMatrix4("u_Projection", Camera.GetProjectionMatrix());
-		TemporalFilter.SetMatrix4("u_View", Camera.GetViewMatrix());
-		TemporalFilter.SetMatrix4("u_PrevProjection", PreviousProjection);
-		TemporalFilter.SetMatrix4("u_PrevView", PreviousView);
-		TemporalFilter.SetMatrix4("u_InverseProjection", glm::inverse(Camera.GetProjectionMatrix()));
-		TemporalFilter.SetMatrix4("u_InverseView", glm::inverse(Camera.GetViewMatrix()));
-
-		TemporalFilter.SetFloat("u_MinimumMix", 0.25f);
-		TemporalFilter.SetFloat("u_MaximumMix", MixFactor);
-
+		// Depth textures 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, IndirectLighting.GetTexture(0));
-
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
 		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, PrevGBuffer.GetDepthBuffer());
+
+		// Actual lighting data 
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, IndirectLighting.GetTexture(0));
+		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D, IndirectTemporalPrev.GetTexture(0));
 
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+		// Normal textures 
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(1));
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, PrevGBuffer.GetTexture(1));
 
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, PrevGBuffer.GetDepthBuffer());
+		// Utility 
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, IndirectTemporalPrev.GetTexture(1));
+
+		// AO
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, IndirectLighting.GetTexture(1));
+		glActiveTexture(GL_TEXTURE8);
+		glBindTexture(GL_TEXTURE_2D, IndirectTemporalPrev.GetTexture(2));
 
 		ScreenQuadVAO.Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		ScreenQuadVAO.Unbind();
+
+		////// SVGF Variance Estimation Pass //////
+
+		IndirectVarianceEstimate.Bind();
+		SVGF_Variance.Use();
+
+		SVGF_Variance.SetInteger("u_DepthTexture", 0);
+		SVGF_Variance.SetInteger("u_NormalTexture", 1);
+		SVGF_Variance.SetInteger("u_Lighting", 2);
+		SVGF_Variance.SetInteger("u_Utility", 3);
+		SVGF_Variance.SetMatrix4("u_InverseProjection", glm::inverse(Camera.GetProjectionMatrix()));
+		SVGF_Variance.SetMatrix4("u_InverseView", glm::inverse(Camera.GetViewMatrix()));
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(1));
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, IndirectTemporalCurr.GetTexture(0));
+
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, IndirectTemporalCurr.GetTexture(1));
+
+		ScreenQuadVAO.Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		ScreenQuadVAO.Unbind();
+
+		IndirectVarianceEstimate.Unbind();
+
+
+		//// SVGF Atrous passes ////
+
+		int StepSizes[5];
+		const bool WiderSVGF = true;
+
+		if (WiderSVGF)
+		{
+			StepSizes[0] = 32;
+			StepSizes[1] = 16;
+			StepSizes[2] = 8;
+			StepSizes[3] = 4;
+			StepSizes[4] = 2;
+		}
+
+		else
+		{
+			StepSizes[0] = 12;
+			StepSizes[1] = 8;
+			StepSizes[2] = 6;
+			StepSizes[3] = 4;
+			StepSizes[4] = 2;
+		}
+
+		for (int i = 0; i < 5; i++)
+		{
+			// 1 2 1 2 1
+			auto& CurrentDenoiseFBO = (i % 2 == 0) ? IndirectSpatial_1 : IndirectSpatial_2;
+			auto& PrevDenoiseFBO = (i == 0) ? IndirectVarianceEstimate :
+				(i % 2 == 0) ? IndirectSpatial_2 : IndirectSpatial_1;
+
+			GLuint VarianceTexture = 0;
+			GLuint AOTexture = 0;
+
+			if (i == 0)
+			{
+				VarianceTexture = IndirectVarianceEstimate.GetTexture(1);
+			}
+
+			else {
+
+				if (i % 2 == 0)
+				{
+					VarianceTexture = IndirectSpatial_2.GetTexture(1);
+				}
+
+				else {
+					VarianceTexture = IndirectSpatial_1.GetTexture(1);
+				}
+			}
+
+			// ao texture
+
+			if (i == 0)
+			{
+				AOTexture = IndirectTemporalCurr.GetTexture(2);
+			}
+
+			else {
+
+				if (i % 2 == 0)
+				{
+					AOTexture = IndirectSpatial_2.GetTexture(2);
+				}
+
+				else {
+					AOTexture = IndirectSpatial_1.GetTexture(2);
+				}
+			}
+
+			CurrentDenoiseFBO.Bind();
+			SVGF_Spatial.Use();
+
+			SVGF_Spatial.SetInteger("u_DepthTexture", 0);
+			SVGF_Spatial.SetInteger("u_NormalTexture", 1);
+			SVGF_Spatial.SetInteger("u_Lighting", 2);
+			SVGF_Spatial.SetInteger("u_VarianceTexture", 3);
+			SVGF_Spatial.SetInteger("u_AO", 4);
+
+			SVGF_Spatial.SetInteger("u_Step", StepSizes[i]);
+			SVGF_Spatial.SetVector2f("u_Dimensions", glm::vec2(CurrentDenoiseFBO.GetWidth(), CurrentDenoiseFBO.GetHeight()));
+			SVGF_Spatial.SetMatrix4("u_InverseProjection", glm::inverse(Camera.GetProjectionMatrix()));
+			SVGF_Spatial.SetMatrix4("u_InverseView", glm::inverse(Camera.GetViewMatrix()));
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(1));
+
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, PrevDenoiseFBO.GetTexture(0));
+
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_2D, VarianceTexture);
+
+			glActiveTexture(GL_TEXTURE4);
+			glBindTexture(GL_TEXTURE_2D, AOTexture);
+
+			ScreenQuadVAO.Bind();
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+			ScreenQuadVAO.Unbind();
+		}
+
+
+
 
 		// Lighting pass : 
 
@@ -458,7 +627,7 @@ void Lumen::StartPipeline()
 		glBindTexture(GL_TEXTURE_CUBE_MAP, Skymap.GetID());
 
 		glActiveTexture(GL_TEXTURE7);
-		glBindTexture(GL_TEXTURE_2D, IndirectTemporalCurr.GetTexture(0));
+		glBindTexture(GL_TEXTURE_2D, IndirectSpatial_1.GetTexture(0));
 		glActiveTexture(GL_TEXTURE8);
 		glBindTexture(GL_TEXTURE_2D, IndirectLighting.GetTexture(1));
 

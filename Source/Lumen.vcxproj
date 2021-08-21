@@ -240,6 +240,9 @@
     <None Include="Core\Shaders\GeometryFrag.glsl" />
     <None Include="Core\Shaders\GeometryVert.glsl" />
     <None Include="Core\Shaders\Raytracing\IndirectRayTrace.glsl" />
+    <None Include="Core\Shaders\SVGF\SpatialFilter.glsl" />
+    <None Include="Core\Shaders\SVGF\TemporalFilter.glsl" />
+    <None Include="Core\Shaders\SVGF\VarianceEstimate.glsl" />
     <None Include="Core\Shaders\Voxelization\ClearData.comp" />
     <None Include="Core\Shaders\Voxelization\Voxelization.frag" />
     <None Include="Core\Shaders\Voxelization\Voxelization.geom" />

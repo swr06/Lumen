@@ -55,6 +55,9 @@
     <Filter Include="Source Files\Lumen\Lumen-Core\Lumen-Shaders\Filtering">
       <UniqueIdentifier>{a30712dd-54cf-49ad-9928-1cc454a461df}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Lumen\Lumen-Core\Lumen-Shaders\SVGF">
+      <UniqueIdentifier>{643d0d66-1929-4eee-a297-1450ef49d7ee}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\imgui\imconfig.h">
@@ -330,6 +333,15 @@
     </None>
     <None Include="Core\Shaders\Filtering\BasicTemporalFilter.glsl">
       <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\Filtering</Filter>
+    </None>
+    <None Include="Core\Shaders\SVGF\SpatialFilter.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\SVGF</Filter>
+    </None>
+    <None Include="Core\Shaders\SVGF\TemporalFilter.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\SVGF</Filter>
+    </None>
+    <None Include="Core\Shaders\SVGF\VarianceEstimate.glsl">
+      <Filter>Source Files\Lumen\Lumen-Core\Lumen-Shaders\SVGF</Filter>
     </None>
   </ItemGroup>
 </Project>

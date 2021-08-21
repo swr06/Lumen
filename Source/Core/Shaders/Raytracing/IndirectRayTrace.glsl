@@ -169,7 +169,7 @@ vec3 GetBlockRayColor(in Ray r, out vec3 pos, inout vec3 out_n, inout float T, f
 		// Calculate SSGI if no intersection :
 
 		if (Bounce == 0 && SSGI_FALLBACK) {
-			return RayTraceSSRTRay(BaseDepth, BaseNormal, true).xyz * 1.0f;
+			return RayTraceSSRTRay(BaseDepth, BaseNormal, true).xyz * 2.0f; // /2 after the loop, *2 here to preserve energy
 		} 
 
 	}
@@ -186,13 +186,18 @@ vec4 CalculateDiffuse(in vec3 initial_origin, in vec3 input_normal, out vec3 dir
 
 	vec3 Position;
 	vec3 Normal;
-	float ao = 1.0f;
+	const float MAX_VXAO_DIST = 3.5f;
+	float AO = 0.0f;
 
 	for (int i = 0 ; i < 2 ; i++)
 	{
 		vec3 tangent_normal;
 		float T;
 		total_color += GetBlockRayColor(new_ray, Position, Normal, T, BaseDepth, BaseNormal, i);
+
+		if (i == 0 && T > 0.0f && T < MAX_VXAO_DIST + 1e-2) {
+			AO += pow(clamp(T / MAX_VOXEL_DIST, 0.0f, 1.0f), 1.0f);
+		}
 
 		if (T <= 0.0f) 
 		{ 
@@ -203,7 +208,7 @@ vec4 CalculateDiffuse(in vec3 initial_origin, in vec3 input_normal, out vec3 dir
 		new_ray.Direction = cosWeightedRandomHemisphereDirection(Normal);
 	}
 	
-	return vec4(total_color / 2.0f, ao); 
+	return vec4(total_color / 2.0f, AO); 
 }
 
 vec3 GetRayDirectionAt(vec2 screenspace)
@@ -220,7 +225,7 @@ float linearizeDepth(float depth)
 
 void main() 
 {
-	o_VXAO = 1;
+	o_VXAO = 0.0f;
 
 	HASH2SEED = (v_TexCoords.x * v_TexCoords.y) * 489.0 * 20.0f;
 	HASH2SEED += fract(u_Time) * 100.0f;
@@ -238,12 +243,15 @@ void main()
 		vec3 ScreenSpaceIndirectDiffuse = vec3(0.0f);
 		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false).xyz;
 		o_IndirectDiffuse = ScreenSpaceIndirectDiffuse;
+		o_IndirectDiffuse = abs(o_IndirectDiffuse);
+
 		return;
 
 	}
 
-
-
+	const vec3 MinimumAmbient = vec3(0.0420, 0.0420, 0.069f);
+	//o_IndirectDiffuse += MinimumAmbient*0.8f;
+	o_IndirectDiffuse = vec3(0.0f);
 
 	//// Convert to voxel space : 
 	vec3 PositionDelta = u_ViewerPosition - u_VoxelizationPosition;
@@ -273,7 +281,7 @@ void main()
 	ivec3 VoxelVolumeSize = ivec3(textureSize(u_VoxelVolume, 0));
 	
 	if (Depth > 0.99999f) {
-		o_IndirectDiffuse = vec3(0.0f);
+		o_IndirectDiffuse += vec3(0.0f);
 		return;
 	}
 
@@ -285,15 +293,18 @@ void main()
 	{
 		vec3 ScreenSpaceIndirectDiffuse = vec3(0.0f);
 		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false).xyz;
-		o_IndirectDiffuse = ScreenSpaceIndirectDiffuse;
+		o_IndirectDiffuse += ScreenSpaceIndirectDiffuse;
+		o_IndirectDiffuse = abs(o_IndirectDiffuse);
 		return;
 	}
 	
-	vec3 IndirectVXGIDiffuse = vec3(0.0f);
+	vec4 IndirectVXGIDiffuse = vec4(0.0f);
 	vec3 SampleRayDirection;
-	IndirectVXGIDiffuse = CalculateDiffuse(VoxelPosition.xyz, Normal.xyz, SampleRayDirection, Depth, Normal).xyz;
-	o_IndirectDiffuse = IndirectVXGIDiffuse;
-	o_VXAO = 1.0f;
+	IndirectVXGIDiffuse = CalculateDiffuse(VoxelPosition.xyz, Normal.xyz, SampleRayDirection, Depth, Normal).xyzw;
+	o_IndirectDiffuse += IndirectVXGIDiffuse.xyz;
+	o_VXAO = IndirectVXGIDiffuse.w;
+	o_IndirectDiffuse = abs(o_IndirectDiffuse);
+
 }
 
 vec2 hash2() 

@@ -11,6 +11,9 @@ void Lumen::ShaderManager::CreateShaders()
 	AddShader("DEPTH", "Core/Shaders/DepthVert.glsl", "Core/Shaders/DepthFrag.glsl");
 	AddShader("INDIRECT_RT", "Core/Shaders/FBOVert.glsl", "Core/Shaders/Raytracing/IndirectRayTrace.glsl");
 	AddShader("BASIC_TEMPORAL", "Core/Shaders/FBOVert.glsl", "Core/Shaders/Filtering/BasicTemporalFilter.glsl");
+	AddShader("SVGF_TEMPORAL", "Core/Shaders/FBOVert.glsl", "Core/Shaders/SVGF/TemporalFilter.glsl");
+	AddShader("SVGF_VARIANCE_ESTIMATE", "Core/Shaders/FBOVert.glsl", "Core/Shaders/SVGF/VarianceEstimate.glsl");
+	AddShader("SVGF_SPATIAL", "Core/Shaders/FBOVert.glsl", "Core/Shaders/SVGF/SpatialFilter.glsl");
 }
 
 void Lumen::ShaderManager::AddShader(const std::string& name, const std::string& vert, const std::string& frag, const std::string& geo)

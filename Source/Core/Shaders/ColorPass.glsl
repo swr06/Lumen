@@ -97,8 +97,9 @@ void main()
 	float DirectionalShadow = CalculateSunShadow(WorldPosition, Normal);
 	vec3 DirectLighting = CalculateDirectionalLight(WorldPosition, normalize(u_LightDirection), SUN_COLOR, Albedo, Normal, RoughnessMetalness, DirectionalShadow).xyz;
 	vec3 IndirectDiffuse = texture(u_IndirectDiffuse, v_TexCoords).xyz;
-	float VXAO = texture(u_VXAO, v_TexCoords).r;
-	vec3 AmbientTerm = (IndirectDiffuse * Albedo);
+	float VXAO = 1.0f - texture(u_VXAO, v_TexCoords).r;
+	VXAO = VXAO * VXAO;
+	vec3 AmbientTerm = ((IndirectDiffuse) * Albedo);
 	o_Color = DirectLighting + AmbientTerm;
 	//o_Color = IndirectDiffuse;
 //o_Color = pow(IndirectDiffuse, vec3(3.0f)) * 0.05f ;
