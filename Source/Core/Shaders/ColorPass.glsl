@@ -78,6 +78,7 @@ vec3 GetRayDirectionAt(vec2 screenspace)
 	return vec3(u_InverseView * eye);
 }
 
+
 void main() 
 {	
 	float depth = texture(u_DepthTexture, v_TexCoords).r;

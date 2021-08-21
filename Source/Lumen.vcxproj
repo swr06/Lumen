@@ -173,6 +173,7 @@
     <ClInclude Include="Core\Pipeline.h" />
     <ClInclude Include="Core\ShaderManager.h" />
     <ClInclude Include="Core\ShadowRenderer.h" />
+    <ClInclude Include="Core\TAAJitter.h" />
     <ClInclude Include="Core\Utils\Random.h" />
     <ClInclude Include="Core\Utils\Timer.h" />
     <ClInclude Include="Core\Utils\Vertex.h" />
@@ -212,6 +213,7 @@
     <ClCompile Include="Core\Pipeline.cpp" />
     <ClCompile Include="Core\ShaderManager.cpp" />
     <ClCompile Include="Core\ShadowRenderer.cpp" />
+    <ClCompile Include="Core\TAAJitter.cpp" />
     <ClCompile Include="Core\Voxelizer.cpp" />
     <ClCompile Include="Dependencies\glad\src\glad.c" />
     <ClCompile Include="Dependencies\imgui\imgui.cpp" />
@@ -243,6 +245,7 @@
     <None Include="Core\Shaders\SVGF\SpatialFilter.glsl" />
     <None Include="Core\Shaders\SVGF\TemporalFilter.glsl" />
     <None Include="Core\Shaders\SVGF\VarianceEstimate.glsl" />
+    <None Include="Core\Shaders\TAA.glsl" />
     <None Include="Core\Shaders\Voxelization\ClearData.comp" />
     <None Include="Core\Shaders\Voxelization\Voxelization.frag" />
     <None Include="Core\Shaders\Voxelization\Voxelization.geom" />

@@ -62,10 +62,10 @@ void main()
     vec3 TotalLighting = vec3(0.0f);
     float TotalLuminosity = 0.0f;
     float TotalWeight2 = 0.0f;
-
-
     float Variance = 0.0f;
+
     const float SPP_THRESH = 4.0f;
+    const float PhiPosition = 0.4f * 2.0f;
 
     if (SPP < SPP_THRESH)
     {
@@ -83,31 +83,31 @@ void main()
                 // Weights : 
                 vec3 PositionDifference = abs(SamplePosition - BasePosition);
                 float DistSqr = dot(PositionDifference, PositionDifference);
+                float PositionWeight = abs(sqrt(DistSqr)) / (PhiPosition * length(vec2(x,y)));
+               
+             
+                vec3 SampleNormal = texture(u_NormalTexture, SampleCoord).xyz;
+                vec3 SampleUtility = texture(u_Utility, SampleCoord).xyz;
+                float SampleMoment = SampleUtility.y;
 
-                if (DistSqr < 2.2f) 
-                { 
-                    vec3 SampleNormal = texture(u_NormalTexture, SampleCoord).xyz;
-                    vec3 SampleUtility = texture(u_Utility, SampleCoord).xyz;
-                    float SampleMoment = SampleUtility.y;
+                vec3 SampleLighting = texture(u_Lighting, SampleCoord).xyz;
+                float SampleLuminosity = LuminanceAccurate(SampleLighting);
 
-                    vec3 SampleLighting = texture(u_Lighting, SampleCoord).xyz;
-                    float SampleLuminosity = LuminanceAccurate(SampleLighting);
+                float NormalWeight = pow(max(dot(BaseNormal, SampleNormal), 0.0f), 1e-2);
+                float LuminosityWeight = abs(SampleLuminosity - BaseLuminosity) / 1.0e1;
+                float Weight = exp(-LuminosityWeight - PositionWeight - NormalWeight);
+                float Weight_2 = NormalWeight;
 
-                    float NormalWeight = pow(max(dot(BaseNormal, SampleNormal), 0.0f), 6.0f);
-                    float LuminosityWeight = abs(SampleLuminosity - BaseLuminosity) / 1.0e1;
-                    float Weight = exp(-LuminosityWeight - NormalWeight);
-                    float Weight_2 = NormalWeight;
+                Weight = max(Weight, 0.015f);
+                Weight_2 = max(Weight_2, 0.015f);
 
-                    Weight = max(Weight, 0.015f);
-                    Weight_2 = max(Weight_2, 0.015f);
+                TotalWeight += Weight;
+                TotalMoment += SampleMoment * Weight_2;
 
-                    TotalWeight += Weight;
-                    TotalMoment += SampleMoment * Weight_2;
-
-                    TotalLighting += SampleLighting * Weight;
-                    TotalLuminosity += SampleLuminosity * Weight_2;
-                    TotalWeight2 += Weight_2;
-                }
+                TotalLighting += SampleLighting * Weight;
+                TotalLuminosity += SampleLuminosity * Weight_2;
+                TotalWeight2 += Weight_2;
+                
             }
         }
 

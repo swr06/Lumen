@@ -65,6 +65,10 @@ struct Ray
 	vec3 Direction;
 };
 
+float Bayer2(vec2 a){
+    a = floor(a);
+    return fract(dot(a, vec2(0.5, a.y * 0.75)));
+}
 
 // Function prototypes 
 vec3 cosWeightedRandomHemisphereDirection(const vec3 n);
@@ -72,9 +76,9 @@ float VoxelTraversalDF(vec3 origin, vec3 direction, inout vec3 normal, inout vec
 vec3 WorldPosFromCoord(vec2 txc);
 vec3 WorldPosFromDepth(float depth, vec2 txc);
 bool voxel_traversal(vec3 origin, vec3 direction, inout vec4 block, out vec3 normal, out vec3 world_pos, int dist);
-vec2 ScreenSpaceRayTrace(vec3 Normal, float Depth, vec2 TexCoords);
+vec2 ScreenSpaceRayTrace(vec3 Normal, float Depth, vec2 TexCoords, bool ReducedSteps);
 bool IsInScreenSpace(in vec3 p);
-vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance);
+vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance, bool ReducedSteps);
 vec2 ScreenSpaceRayTrace(vec3 WorldPosition, vec3 CosineDirection);
 
 // 
@@ -161,7 +165,7 @@ vec3 GetBlockRayColor(in Ray r, out vec3 pos, inout vec3 out_n, inout float T, f
 
 	if (Intersect) 
 	{ 
-		return GetDirectLighting(pos, out_n, data);
+		return GetDirectLighting(pos, out_n, data) + (vec3(0.05, 0.05, 0.075f) * 0.4f);
 	} 
 
 	else {
@@ -169,9 +173,10 @@ vec3 GetBlockRayColor(in Ray r, out vec3 pos, inout vec3 out_n, inout float T, f
 		// Calculate SSGI if no intersection :
 
 		if (Bounce == 0 && SSGI_FALLBACK) {
-			return RayTraceSSRTRay(BaseDepth, BaseNormal, true).xyz * 2.0f; // /2 after the loop, *2 here to preserve energy
+			return RayTraceSSRTRay(BaseDepth, BaseNormal, true, true).xyz * 2.0f; // /2 after the loop, *2 here to preserve energy
 		} 
 
+		return ComputeSkymapRadiance(4, BaseNormal);
 	}
 
 	return vec3(0.0f);
@@ -179,7 +184,7 @@ vec3 GetBlockRayColor(in Ray r, out vec3 pos, inout vec3 out_n, inout float T, f
 
 vec4 CalculateDiffuse(in vec3 initial_origin, in vec3 input_normal, out vec3 dir, float BaseDepth, vec3 BaseNormal)
 {
-	const float bias = sqrt(2.0f) * 1.0f;
+	const float bias = (sqrt(2.0f) * 1.0f) + (1e-2);
 	Ray new_ray = Ray(initial_origin + input_normal * bias, cosWeightedRandomHemisphereDirection(input_normal));
 
 	vec3 total_color = vec3(0.0f);;
@@ -189,11 +194,13 @@ vec4 CalculateDiffuse(in vec3 initial_origin, in vec3 input_normal, out vec3 dir
 	const float MAX_VXAO_DIST = 3.5f;
 	float AO = 0.0f;
 
-	for (int i = 0 ; i < 2 ; i++)
+	int bounces = 2;
+
+	for (int i = 0 ; i < bounces ; i++)
 	{
 		vec3 tangent_normal;
 		float T;
-		total_color += GetBlockRayColor(new_ray, Position, Normal, T, BaseDepth, BaseNormal, i);
+		total_color += GetBlockRayColor(new_ray, Position, Normal, T, BaseDepth, BaseNormal, i) * (1.0f / float(i + 1.0f));
 
 		if (i == 0 && T > 0.0f && T < MAX_VXAO_DIST + 1e-2) {
 			AO += pow(clamp(T / MAX_VOXEL_DIST, 0.0f, 1.0f), 1.0f);
@@ -208,7 +215,7 @@ vec4 CalculateDiffuse(in vec3 initial_origin, in vec3 input_normal, out vec3 dir
 		new_ray.Direction = cosWeightedRandomHemisphereDirection(Normal);
 	}
 	
-	return vec4(total_color / 2.0f, AO); 
+	return vec4(total_color.xyz, AO);
 }
 
 vec3 GetRayDirectionAt(vec2 screenspace)
@@ -241,7 +248,7 @@ void main()
 	if (DEBUG_SSGI) { 
 
 		vec3 ScreenSpaceIndirectDiffuse = vec3(0.0f);
-		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false).xyz;
+		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false, false).xyz;
 		o_IndirectDiffuse = ScreenSpaceIndirectDiffuse;
 		o_IndirectDiffuse = abs(o_IndirectDiffuse);
 
@@ -292,7 +299,7 @@ void main()
 		VoxelPositionNormalized.z < 0.0f + 0.01f || VoxelPositionNormalized.z > 1.0f - 0.01f)
 	{
 		vec3 ScreenSpaceIndirectDiffuse = vec3(0.0f);
-		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false).xyz;
+		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false, false).xyz;
 		o_IndirectDiffuse += ScreenSpaceIndirectDiffuse;
 		o_IndirectDiffuse = abs(o_IndirectDiffuse);
 		return;
@@ -483,9 +490,9 @@ float VoxelTraversalDF(vec3 origin, vec3 direction, inout vec3 normal, inout vec
 // Screen space ray tracing //
 /////////////////////////////
 
-vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance) 
+vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance, bool ReducedSteps) 
 {
-	vec2 UV = ScreenSpaceRayTrace(Normal, Depth, v_TexCoords);
+	vec2 UV = ScreenSpaceRayTrace(Normal, Depth, v_TexCoords, ReducedSteps);
 	vec3 BounceRadiance = vec3(0.0f);
 
 	if (IsInScreenSpace(vec3(UV, 0.01f)))
@@ -504,7 +511,7 @@ vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance)
 		// Second Bounce
 		// Ray trace from first hit point and first normal
 
-		vec2 SecondBounceUV = ScreenSpaceRayTrace(NormalAt_First, DepthAt_First, UV);
+		vec2 SecondBounceUV = ScreenSpaceRayTrace(NormalAt_First, DepthAt_First, UV, ReducedSteps);
 		if (IsInScreenSpace(vec3(SecondBounceUV, 0.01f))) 
 		{
 			// Compute lighting : 
@@ -572,7 +579,7 @@ bool IsInScreenSpace(in vec3 p)
 }
 
 
-vec2 ScreenSpaceRayTrace(vec3 Normal, float Depth, vec2 TexCoords)
+vec2 ScreenSpaceRayTrace(vec3 Normal, float Depth, vec2 TexCoords, bool ReducedSteps)
 {
     //vec3 ViewSpaceNormal = vec3(u_View * vec4(Normal, 0.0f));
     //vec3 ViewSpaceViewDirection = normalize(ViewSpacePosition);
@@ -594,7 +601,9 @@ vec2 ScreenSpaceRayTrace(vec3 Normal, float Depth, vec2 TexCoords)
 	vec2 FinalUV = vec2(-1.0f);
 	float finalSampleDepth = 0.0;
 
-    for (int i = 0; i < 40; i++)
+	int StepCount = 55 - (20 * int(ReducedSteps));
+
+    for (int i = 0; i < StepCount; i++)
     {
         if(-ViewSpaceVectorPosition.z > u_zFar * 1.4f || -ViewSpaceVectorPosition.z < 0.0f)
         {

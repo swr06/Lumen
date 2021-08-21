@@ -13,12 +13,13 @@ out vec3 v_FragPosition;
 out vec3 v_Normal;
 
 uniform mat4 u_ViewProjection;
+uniform mat4 u_TAAJitterMatrix;
 
 void main()
 {
 	gl_Position = u_ModelMatrix * vec4(a_Position, 1.0f);
 	v_FragPosition = gl_Position.xyz;
-	gl_Position = u_ViewProjection * gl_Position;
+	gl_Position = u_TAAJitterMatrix * u_ViewProjection * gl_Position;
 	v_TexCoords = unpackHalf2x16(a_TexCoords);
 	vec2 Data_0 = unpackHalf2x16(a_NormalTangentData.x);
 	vec2 Data_1 = unpackHalf2x16(a_NormalTangentData.y);

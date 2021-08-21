@@ -14,6 +14,7 @@ void Lumen::ShaderManager::CreateShaders()
 	AddShader("SVGF_TEMPORAL", "Core/Shaders/FBOVert.glsl", "Core/Shaders/SVGF/TemporalFilter.glsl");
 	AddShader("SVGF_VARIANCE_ESTIMATE", "Core/Shaders/FBOVert.glsl", "Core/Shaders/SVGF/VarianceEstimate.glsl");
 	AddShader("SVGF_SPATIAL", "Core/Shaders/FBOVert.glsl", "Core/Shaders/SVGF/SpatialFilter.glsl");
+	AddShader("TAA", "Core/Shaders/FBOVert.glsl", "Core/Shaders/TAA.glsl");
 }
 
 void Lumen::ShaderManager::AddShader(const std::string& name, const std::string& vert, const std::string& frag, const std::string& geo)

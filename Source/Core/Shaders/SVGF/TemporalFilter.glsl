@@ -134,6 +134,7 @@ void main()
 		vec3 NormalDifference = abs(BaseNormal - PreviousNormalAt);
 		float NormalError = dot(NormalDifference, NormalDifference);
 
+		// todo : adjust this because this causes a fuckton of problems!
 		if (PositionError < 2.2f && NormalError < 0.075f)
 		{
 			vec3 PreviousUtility = texture(u_PreviousUtility, SampleCoord).xyz;

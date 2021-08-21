@@ -22,11 +22,12 @@ uniform mat4 u_InverseView;
 uniform mat4 u_InverseProjection;
 
 
+uniform float u_zNear;
+uniform float u_zFar;
 
 
 
-
-const float u_ColorPhiBias = 1.0f;
+const float u_ColorPhiBias = 2.6f;
 const float POSITION_THRESH = 4.0f;
 
 vec3 WorldPosFromDepth(float depth, vec2 txc)
@@ -97,6 +98,11 @@ float SHToY(vec4 shY)
     return max(0, 3.544905f * shY.w);
 }
 
+float linearizeDepth(float depth)
+{
+	return (2.0 * u_zNear) / (u_zFar + u_zNear - depth * (u_zFar - u_zNear));
+}
+
 float sqr(float x) { return x * x; }
 float GetSaturation(in vec3 v) { return length(v); }
 
@@ -111,6 +117,7 @@ void main()
 	bool FilterAO = u_Step <= 6;
 
 	float BaseDepth = texture(u_DepthTexture, v_TexCoords).x;
+	float BaseLinearDepth = linearizeDepth(BaseDepth);
 	vec3 BasePosition = WorldPosFromDepth(BaseDepth, v_TexCoords);
 	vec3 BaseNormal = texture(u_NormalTexture, v_TexCoords).xyz;
 	vec3 BaseLighting = texture(u_Lighting, v_TexCoords).xyz;
@@ -129,50 +136,51 @@ void main()
 	float PhiColor = sqrt(max(0.0f, 1e-10 + VarianceEstimate));
 	PhiColor /= max(u_ColorPhiBias, 0.4f); 
 
+	float PhiPosition = 0.4f * u_Step;
+
 	for (int x = -1 ; x <= 1 ; x++)
 	{
-		for (int y = -1 ; y <= 1 ; y++)
+		for (int y = -2 ; y <= 2 ; y++)
 		{
 			vec2 SampleCoord = v_TexCoords + (vec2(x, y) * float(u_Step)) * TexelSize;
 			if (!InScreenSpace(SampleCoord)) { continue; }
 			if (x == 0 && y == 0) { continue ; }
 
 			float SampleDepth = texture(u_DepthTexture, SampleCoord).x;
+			float SampleLinearDepth = linearizeDepth(SampleDepth);
 			vec3 SamplePosition = WorldPosFromDepth(SampleDepth, SampleCoord).xyz;
 
 			// Weights : 
 			vec3 PositionDifference = abs(SamplePosition.xyz - BasePosition.xyz);
             float DistSqr = dot(PositionDifference, PositionDifference);
+			float PositionWeight = abs(sqrt(DistSqr)) / (PhiPosition * length(vec2(x,y)));
 
-			if (DistSqr < 3.2f) {
+			// Samples :
+			vec3 SampleLighting = texture(u_Lighting, SampleCoord).xyz;
+			vec3 SampleNormal = texture(u_NormalTexture, SampleCoord).xyz;
+			float SampleLuma = LuminanceAccurate(SampleLighting);
+			float SampleVariance = texture(u_VarianceTexture, SampleCoord).r;
 
-				// Samples :
-				vec3 SampleLighting = texture(u_Lighting, SampleCoord).xyz;
-				vec3 SampleNormal = texture(u_NormalTexture, SampleCoord).xyz;
-				float SampleLuma = LuminanceAccurate(SampleLighting);
-				float SampleVariance = texture(u_VarianceTexture, SampleCoord).r;
+			// :D
+			float NormalWeight = pow(max(dot(BaseNormal, SampleNormal), 0.0f), 1e-2);
+			float LuminosityWeight = abs(SampleLuma - BaseLuminance) / PhiColor;
+			float Weight = exp(-LuminosityWeight - PositionWeight - NormalWeight);
+			Weight = max(Weight, 0.0f);
 
-				// :D
-				float NormalWeight = pow(max(dot(BaseNormal, SampleNormal), 0.0f), 6.0f);
-				float LuminosityWeight = abs(SampleLuma - BaseLuminance) / PhiColor;
-				float Weight = exp(-LuminosityWeight - NormalWeight);
-				Weight = max(Weight, 0.0f);
+			// Kernel Weights : 
+			float XWeight = AtrousWeights[abs(x)];
+			float YWeight = AtrousWeights[abs(y)];
 
-				// Kernel Weights : 
-				float XWeight = AtrousWeights[abs(x)];
-				float YWeight = AtrousWeights[abs(y)];
+			Weight = (XWeight * YWeight) * Weight;
+			Weight = max(Weight, 0.01f);
 
-				Weight = (XWeight * YWeight) * Weight;
-				Weight = max(Weight, 0.01f);
+			TotalLighting += SampleLighting * Weight;
+			TotalVariance += sqr(Weight) * SampleVariance;
+			TotalWeight += Weight;
 
-				TotalLighting += SampleLighting * Weight;
-				TotalVariance += sqr(Weight) * SampleVariance;
-				TotalWeight += Weight;
-
-				if (FilterAO) {
-					TotalAO += texture(u_AO, SampleCoord).x * Weight;
-					TotalAOWeight += Weight;
-				}
+			if (FilterAO) {
+				TotalAO += texture(u_AO, SampleCoord).x * Weight;
+				TotalAOWeight += Weight;
 			}
 		}
 	}

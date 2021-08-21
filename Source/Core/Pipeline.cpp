@@ -17,6 +17,7 @@
 #include "ShadowRenderer.h"
 #include "GLClasses/CubeTextureMap.h"
 #include "Voxelizer.h"
+#include "TAAJitter.h"
 
 #include <string>
 
@@ -29,6 +30,8 @@ static glm::vec3 VoxelizationPosition;
 
 static float IndirectTraceResolution = 0.3f;
 static float MixFactor = 0.975f;
+
+static bool TAAEnabled = true;
 
 
 
@@ -84,6 +87,7 @@ public:
 		ImGui::SliderFloat("Indirect Resolution : ", &IndirectTraceResolution, 0.1f, 1.0f);
 		ImGui::SliderFloat3("Sun Dir : ", &SunDirection[0], -1.0f, 1.0f);
 		ImGui::SliderFloat("Indirect Mix : ", &MixFactor, 0.01f, 0.995);
+		ImGui::Checkbox("TAA", &TAAEnabled);
 	}
 
 	void OnEvent(Lumen::Event e) override
@@ -154,6 +158,12 @@ GLClasses::Framebuffer GBuffer2(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, tr
 // Lighting 
 GLClasses::Framebuffer LightingPass(16, 16, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, false, false);
 
+// TAA
+GLClasses::Framebuffer TAAFBO1(16, 16, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, false, false);
+GLClasses::Framebuffer TAAFBO2(16, 16, {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, false, false);
+
+// Post process
+
 // Indirect : 
 GLClasses::Framebuffer IndirectLighting(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
 GLClasses::Framebuffer IndirectTemporal_1(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_RGB16F, GL_RGB, GL_FLOAT, false, false}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
@@ -168,7 +178,7 @@ void Lumen::StartPipeline()
 	RayTracerApp app;
 	app.Initialize();
 	app.SetCursorLocked(true);
-
+	GenerateJitterStuff();
 
 	GLClasses::VertexBuffer ScreenQuadVBO;
 	GLClasses::VertexArray ScreenQuadVAO;
@@ -224,7 +234,7 @@ void Lumen::StartPipeline()
 	GLClasses::Shader& SVGF_Temporal = ShaderManager::GetShader("SVGF_TEMPORAL");
 	GLClasses::Shader& SVGF_Variance = ShaderManager::GetShader("SVGF_VARIANCE_ESTIMATE");
 	GLClasses::Shader& SVGF_Spatial = ShaderManager::GetShader("SVGF_SPATIAL");
-
+	GLClasses::Shader& TAA = ShaderManager::GetShader("TAA");
 
 	glm::mat4 CurrentProjection, CurrentView;
 	glm::mat4 PreviousProjection, PreviousView;
@@ -243,14 +253,30 @@ void Lumen::StartPipeline()
 
 	while (!glfwWindowShouldClose(app.GetWindow()))
 	{
+		glm::mat4 TAAJitterMatrix = GetTAAJitterMatrix(app.GetCurrentFrame(), glm::vec2(app.GetWidth(), app.GetHeight()));
+
+		// GBuffers
 		auto& GBuffer = (app.GetCurrentFrame() % 2 == 0) ? GBuffer1 : GBuffer2;
 		auto& PrevGBuffer = (app.GetCurrentFrame() % 2 == 0) ? GBuffer2 : GBuffer1;
+		
+		// Indirect temporal
 		auto& IndirectTemporalCurr = (app.GetCurrentFrame() % 2 == 0) ? IndirectTemporal_1 : IndirectTemporal_2;
 		auto& IndirectTemporalPrev = (app.GetCurrentFrame() % 2 == 0) ? IndirectTemporal_2 : IndirectTemporal_1;
 
+		// TAA
+		auto& TAACurr = (app.GetCurrentFrame() % 2 == 0) ? TAAFBO1 : TAAFBO2;
+		auto& TAAPrev = (app.GetCurrentFrame() % 2 == 0) ? TAAFBO2 : TAAFBO1;
+
+		// GBuffers
 		GBuffer.SetSize(app.GetWidth(), app.GetHeight());
 		PrevGBuffer.SetSize(app.GetWidth(), app.GetHeight());
+
+		// Direct lighting 
 		LightingPass.SetSize(app.GetWidth(), app.GetHeight());
+
+		// Taa / Post process
+		TAAFBO1.SetSize(app.GetWidth(), app.GetHeight());
+		TAAFBO2.SetSize(app.GetWidth(), app.GetHeight());
 		
 		// Indirect lighting 
 		IndirectLighting.SetSize(floor(app.GetWidth() * IndirectTraceResolution), floor(app.GetHeight() * IndirectTraceResolution));
@@ -263,6 +289,7 @@ void Lumen::StartPipeline()
 		// App update 
 		app.OnUpdate();
 
+		// Matrix Updates
 		PreviousProjection = CurrentProjection;
 		PreviousView = CurrentView;
 		PreviousPosition = CurrentPosition;
@@ -288,13 +315,18 @@ void Lumen::StartPipeline()
 		glEnable(GL_DEPTH_TEST);
 		GBuffer.Bind();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		GBufferShader.Use();
 		GBufferShader.SetMatrix4("u_ViewProjection", Camera.GetViewProjection());
+		GBufferShader.SetMatrix4("u_TAAJitterMatrix", TAAJitterMatrix);
 		GBufferShader.SetInteger("u_AlbedoMap", 0);
 		GBufferShader.SetInteger("u_NormalMap", 1);
 		GBufferShader.SetInteger("u_RoughnessMap", 2);
 		GBufferShader.SetInteger("u_MetalnessMap", 3);
 		GBufferShader.SetInteger("u_MetalnessRoughnessMap", 5);
+		GBufferShader.SetInteger("u_FrameCounter", app.GetCurrentFrame());
+		GBufferShader.SetVector2f("u_V_Dimensions", glm::vec2(GBuffer.GetWidth(), GBuffer.GetHeight()));
+
 		RenderEntity(MainModel, GBufferShader);
 		UnbindEverything();
 
@@ -425,9 +457,9 @@ void Lumen::StartPipeline()
 
 		// Normal textures 
 		glActiveTexture(GL_TEXTURE4);
-		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(1));
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(2));
 		glActiveTexture(GL_TEXTURE5);
-		glBindTexture(GL_TEXTURE_2D, PrevGBuffer.GetTexture(1));
+		glBindTexture(GL_TEXTURE_2D, PrevGBuffer.GetTexture(2));
 
 		// Utility 
 		glActiveTexture(GL_TEXTURE6);
@@ -458,7 +490,7 @@ void Lumen::StartPipeline()
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(1));
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(2));
 
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, IndirectTemporalCurr.GetTexture(0));
@@ -489,9 +521,9 @@ void Lumen::StartPipeline()
 
 		else
 		{
-			StepSizes[0] = 12;
-			StepSizes[1] = 8;
-			StepSizes[2] = 6;
+			StepSizes[0] = 16;
+			StepSizes[1] = 12;
+			StepSizes[2] = 8;
 			StepSizes[3] = 4;
 			StepSizes[4] = 2;
 		}
@@ -556,11 +588,14 @@ void Lumen::StartPipeline()
 			SVGF_Spatial.SetMatrix4("u_InverseProjection", glm::inverse(Camera.GetProjectionMatrix()));
 			SVGF_Spatial.SetMatrix4("u_InverseView", glm::inverse(Camera.GetViewMatrix()));
 
+			SVGF_Spatial.SetFloat("u_zNear", 0.1f);
+			SVGF_Spatial.SetFloat("u_zFar", 1000.0f);
+
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
 
 			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(1));
+			glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(2));
 
 			glActiveTexture(GL_TEXTURE2);
 			glBindTexture(GL_TEXTURE_2D, PrevDenoiseFBO.GetTexture(0));
@@ -635,6 +670,40 @@ void Lumen::StartPipeline()
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		ScreenQuadVAO.Unbind();
 
+		// TAA
+
+		TAACurr.Bind();
+		TAA.Use();
+
+		TAA.SetInteger("u_CurrentColorTexture", 0);
+		TAA.SetInteger("u_DepthTexture", 1);
+		TAA.SetInteger("u_PreviousColorTexture", 2);
+		TAA.SetInteger("u_PreviousDepthTexture", 3);
+
+		TAA.SetMatrix4("u_InverseView", glm::inverse(CurrentView));
+		TAA.SetMatrix4("u_InverseProjection", glm::inverse(CurrentProjection));
+		TAA.SetMatrix4("u_PrevProjection", (PreviousProjection));
+		TAA.SetMatrix4("u_PrevView", (PreviousView));
+		TAA.SetMatrix4("u_InversePrevProjection", glm::inverse(PreviousProjection));
+		TAA.SetMatrix4("u_InversePrevView", glm::inverse(PreviousView));
+
+		TAA.SetBool("u_Enabled", TAAEnabled);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, PrevGBuffer.GetDepthBuffer());
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, LightingPass.GetTexture());
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, TAAPrev.GetTexture());
+
+		ScreenQuadVAO.Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		ScreenQuadVAO.Unbind();
+
+		TAACurr.Unbind();
 
 
 		// Final
@@ -645,7 +714,7 @@ void Lumen::StartPipeline()
 		FinalShader.SetInteger("u_MainTexture", 0);
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, LightingPass.GetTexture(0));
+		glBindTexture(GL_TEXTURE_2D, TAACurr.GetTexture(0));
 
 		ScreenQuadVAO.Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 6);
