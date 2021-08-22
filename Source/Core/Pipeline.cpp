@@ -28,7 +28,7 @@ static float SunTick = 50.0f;
 static glm::vec3 SunDirection = glm::vec3(0.1f, -1.0f, 0.1f);
 static glm::vec3 VoxelizationPosition;
 
-static float IndirectTraceResolution = 0.3f;
+static float IndirectTraceResolution = 0.325f;
 static float MixFactor = 0.975f;
 
 static bool TAAEnabled = true;
@@ -172,6 +172,11 @@ GLClasses::Framebuffer IndirectVarianceEstimate(16, 16, { {GL_RGB16F, GL_RGB, GL
 GLClasses::Framebuffer IndirectSpatial_1(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_R16F, GL_RED, GL_FLOAT , false, false}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
 GLClasses::Framebuffer IndirectSpatial_2(16, 16, { {GL_RGB16F, GL_RGB, GL_FLOAT, true, true}, {GL_R16F, GL_RED, GL_FLOAT , false, false}, {GL_RED, GL_RED, GL_UNSIGNED_BYTE, true, true} }, false, false);
 
+// Downsampled Buffers 
+GLClasses::Framebuffer DownsampledDepth_1(16, 16, { GL_R32F, GL_RED, GL_FLOAT , false, false }, false, false);
+GLClasses::Framebuffer DownsampledDepth_2(16, 16, { GL_R32F, GL_RED, GL_FLOAT , false, false }, false, false);
+
+
 
 void Lumen::StartPipeline()
 {
@@ -235,6 +240,7 @@ void Lumen::StartPipeline()
 	GLClasses::Shader& SVGF_Variance = ShaderManager::GetShader("SVGF_VARIANCE_ESTIMATE");
 	GLClasses::Shader& SVGF_Spatial = ShaderManager::GetShader("SVGF_SPATIAL");
 	GLClasses::Shader& TAA = ShaderManager::GetShader("TAA");
+	GLClasses::Shader& DownsampleDepth = ShaderManager::GetShader("DEPTH_DOWNSAMPLE");
 
 	glm::mat4 CurrentProjection, CurrentView;
 	glm::mat4 PreviousProjection, PreviousView;
@@ -258,6 +264,8 @@ void Lumen::StartPipeline()
 		// GBuffers
 		auto& GBuffer = (app.GetCurrentFrame() % 2 == 0) ? GBuffer1 : GBuffer2;
 		auto& PrevGBuffer = (app.GetCurrentFrame() % 2 == 0) ? GBuffer2 : GBuffer1;
+		auto& DownsampledDepthCurr = (app.GetCurrentFrame() % 2 == 0) ? DownsampledDepth_1 : DownsampledDepth_2;
+		auto& DownsampledDepthPrev = (app.GetCurrentFrame() % 2 == 0) ? DownsampledDepth_2 : DownsampledDepth_1;
 		
 		// Indirect temporal
 		auto& IndirectTemporalCurr = (app.GetCurrentFrame() % 2 == 0) ? IndirectTemporal_1 : IndirectTemporal_2;
@@ -270,6 +278,8 @@ void Lumen::StartPipeline()
 		// GBuffers
 		GBuffer.SetSize(app.GetWidth(), app.GetHeight());
 		PrevGBuffer.SetSize(app.GetWidth(), app.GetHeight());
+		DownsampledDepth_1.SetSize(floor(app.GetWidth() * 0.25f), floor(app.GetHeight() * 0.25f));
+		DownsampledDepth_2.SetSize(floor(app.GetWidth() * 0.25f), floor(app.GetHeight() * 0.25f));
 
 		// Direct lighting 
 		LightingPass.SetSize(app.GetWidth(), app.GetHeight());
@@ -349,6 +359,22 @@ void Lumen::StartPipeline()
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_DEPTH_TEST);
 
+		// 4x Downsample depth 
+
+		DownsampleDepth.Use();
+		DownsampledDepthCurr.Bind();
+
+		DownsampleDepth.SetInteger("u_DepthBuffer", 0);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+
+		ScreenQuadVAO.Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		ScreenQuadVAO.Unbind();
+
+		DownsampledDepthCurr.Unbind();
+
 		//
 		// Indirect :
 
@@ -394,7 +420,7 @@ void Lumen::StartPipeline()
 		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(3));
 
 		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+		glBindTexture(GL_TEXTURE_2D, DownsampledDepthCurr.GetTexture(0));
 
 		glActiveTexture(GL_TEXTURE4);
 		glBindTexture(GL_TEXTURE_2D, Shadowmap.GetDepthTexture());
@@ -445,9 +471,9 @@ void Lumen::StartPipeline()
 
 		// Depth textures 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+		glBindTexture(GL_TEXTURE_2D, DownsampledDepthCurr.GetTexture());
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, PrevGBuffer.GetDepthBuffer());
+		glBindTexture(GL_TEXTURE_2D, DownsampledDepthPrev.GetTexture());
 
 		// Actual lighting data 
 		glActiveTexture(GL_TEXTURE2);
@@ -488,7 +514,7 @@ void Lumen::StartPipeline()
 		SVGF_Variance.SetMatrix4("u_InverseView", glm::inverse(Camera.GetViewMatrix()));
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+		glBindTexture(GL_TEXTURE_2D, DownsampledDepthCurr.GetTexture());
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(2));
 
@@ -592,7 +618,7 @@ void Lumen::StartPipeline()
 			SVGF_Spatial.SetFloat("u_zFar", 1000.0f);
 
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, GBuffer.GetDepthBuffer());
+			glBindTexture(GL_TEXTURE_2D, DownsampledDepthCurr.GetTexture());
 
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(2));
@@ -628,6 +654,7 @@ void Lumen::StartPipeline()
 		LightingShader.SetInteger("u_Skymap", 6);
 		LightingShader.SetInteger("u_IndirectDiffuse", 7);
 		LightingShader.SetInteger("u_VXAO", 8);
+		LightingShader.SetInteger("u_NormalRaw", 9);
 
 		LightingShader.SetMatrix4("u_Projection", Camera.GetProjectionMatrix());
 		LightingShader.SetMatrix4("u_View", Camera.GetViewMatrix());
@@ -665,6 +692,9 @@ void Lumen::StartPipeline()
 		glBindTexture(GL_TEXTURE_2D, IndirectSpatial_1.GetTexture(0));
 		glActiveTexture(GL_TEXTURE8);
 		glBindTexture(GL_TEXTURE_2D, IndirectLighting.GetTexture(1));
+
+		glActiveTexture(GL_TEXTURE9);
+		glBindTexture(GL_TEXTURE_2D, GBuffer.GetTexture(2));
 
 		ScreenQuadVAO.Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 6);

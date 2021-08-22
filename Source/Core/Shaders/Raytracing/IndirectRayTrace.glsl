@@ -78,7 +78,7 @@ vec3 WorldPosFromDepth(float depth, vec2 txc);
 bool voxel_traversal(vec3 origin, vec3 direction, inout vec4 block, out vec3 normal, out vec3 world_pos, int dist);
 vec2 ScreenSpaceRayTrace(vec3 Normal, float Depth, vec2 TexCoords, bool ReducedSteps);
 bool IsInScreenSpace(in vec3 p);
-vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance, bool ReducedSteps);
+vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance, bool ReducedSteps, bool DarkenSky);
 vec2 ScreenSpaceRayTrace(vec3 WorldPosition, vec3 CosineDirection);
 
 // 
@@ -133,7 +133,7 @@ vec3 CalculateDirectionalLight(in vec3 world_pos, in vec3 light_dir, vec3 radian
 // Returns direct lighting for a single point : 
 vec3 GetDirectLighting(vec3 p, vec3 n, vec4 a) 
 {
-	const vec3 SUN_COLOR = vec3(4.20f); // ;)
+	const vec3 SUN_COLOR = vec3(6.90f); // ;)
 	float shadow = a.w < 0.6f ? 0.0f : 1.0f;
 	shadow = clamp(1.0f - shadow, 0.0f, 1.0f);
 	return clamp(CalculateDirectionalLight(p, u_LightDirection, SUN_COLOR, pow(a.xyz, vec3(1.0f)), n, shadow), 0.0f, 5.0f);
@@ -150,7 +150,7 @@ vec3 ComputeSkymapRadiance(int Samples, vec3 Normal)
 	}
 
 	SkyRadiance /= float(Samples);
-	return SkyRadiance;
+	return SkyRadiance*0.75;
 }
 
 // Gets the shading for a single ray 
@@ -173,7 +173,7 @@ vec3 GetBlockRayColor(in Ray r, out vec3 pos, inout vec3 out_n, inout float T, f
 		// Calculate SSGI if no intersection :
 
 		if (Bounce == 0 && SSGI_FALLBACK) {
-			return RayTraceSSRTRay(BaseDepth, BaseNormal, true, true).xyz * 2.0f; // /2 after the loop, *2 here to preserve energy
+			return RayTraceSSRTRay(BaseDepth, BaseNormal, true, true, false).xyz * 2.0f; // /2 after the loop, *2 here to preserve energy
 		} 
 
 		return ComputeSkymapRadiance(4, BaseNormal);
@@ -248,7 +248,7 @@ void main()
 	if (DEBUG_SSGI) { 
 
 		vec3 ScreenSpaceIndirectDiffuse = vec3(0.0f);
-		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false, false).xyz;
+		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false, false, false).xyz;
 		o_IndirectDiffuse = ScreenSpaceIndirectDiffuse;
 		o_IndirectDiffuse = abs(o_IndirectDiffuse);
 
@@ -299,7 +299,7 @@ void main()
 		VoxelPositionNormalized.z < 0.0f + 0.01f || VoxelPositionNormalized.z > 1.0f - 0.01f)
 	{
 		vec3 ScreenSpaceIndirectDiffuse = vec3(0.0f);
-		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false, false).xyz;
+		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false, false, true).xyz;
 		o_IndirectDiffuse += ScreenSpaceIndirectDiffuse;
 		o_IndirectDiffuse = abs(o_IndirectDiffuse);
 		return;
@@ -490,7 +490,7 @@ float VoxelTraversalDF(vec3 origin, vec3 direction, inout vec3 normal, inout vec
 // Screen space ray tracing //
 /////////////////////////////
 
-vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance, bool ReducedSteps) 
+vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance, bool ReducedSteps, bool DarkenSky) 
 {
 	vec2 UV = ScreenSpaceRayTrace(Normal, Depth, v_TexCoords, ReducedSteps);
 	vec3 BounceRadiance = vec3(0.0f);
@@ -528,7 +528,8 @@ vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance, bool Red
 		BounceRadiance = vec3(0.0f);
 
 		if (ComputeSkyRadiance) {
-			BounceRadiance = ComputeSkymapRadiance(12, Normal) * 2.4f;  // multiplying it because the result is then divided by 2
+			float m = DarkenSky ? 1.0f : 1.8250f;
+			BounceRadiance = ComputeSkymapRadiance(12, Normal) * m;  // multiplying it because the result is then divided by 2
 		}
 	}
 

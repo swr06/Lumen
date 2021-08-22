@@ -236,6 +236,7 @@
     <None Include="Core\Shaders\DistanceFields\ManhattanDistanceX.comp" />
     <None Include="Core\Shaders\DistanceFields\ManhattanDistanceY.comp" />
     <None Include="Core\Shaders\DistanceFields\ManhattanDistanceZ.comp" />
+    <None Include="Core\Shaders\DownsampleDepthBuffer.glsl" />
     <None Include="Core\Shaders\FBOFrag.glsl" />
     <None Include="Core\Shaders\FBOVert.glsl" />
     <None Include="Core\Shaders\Filtering\BasicTemporalFilter.glsl" />

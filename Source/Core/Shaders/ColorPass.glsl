@@ -14,6 +14,7 @@ uniform sampler2D u_BlueNoise;
 uniform sampler2D u_IndirectDiffuse;
 uniform sampler2D u_VXAO;
 uniform samplerCube u_Skymap;
+uniform sampler2D u_NormalRaw;
 
 uniform vec3 u_ViewerPosition;
 uniform vec3 u_LightDirection;
@@ -79,6 +80,111 @@ vec3 GetRayDirectionAt(vec2 screenspace)
 }
 
 
+const ivec4[7] xOffsets = ivec4[7](
+	ivec4(-1, 0, 0, 1),
+	ivec4( 0, 1,-1,-1),
+	ivec4( 2, 0,-2,-1),
+	ivec4( 2,-2, 2,-2),
+	ivec4(-2,-2, 1, 1),
+	ivec4( 0, 2,-1, 1),
+	ivec4(69,69, 0,69)
+);
+
+const ivec4[7] yOffsets = ivec4[7]
+(
+	ivec4( 2,-1, 1, 0),
+	ivec4( 0, 1, 0, 1),
+	ivec4( 1, 2, 2,-1),
+	ivec4(-1, 1, 2, 0),
+	ivec4(-1,-2,-1, 2),
+	ivec4(-2,-2,-2,-2),
+	ivec4(69,69, 0,69)
+);
+
+float linearizeDepth(float depth)
+{
+	float ZNear = 0.1f;
+	float ZFar = 1000.0f;
+	return (2.0 * ZNear) / (ZFar + ZNear - depth * (ZFar - ZNear));
+}
+
+// Kernels :
+const float[5] kernel = float[5] (0.00135,0.157305,0.68269,0.157305,0.00135);
+const float[7] ker7 = float[7](0.000015,0.006194,0.196119,0.595343,0.196119,0.006194,0.000015);
+const float[9] ker9 = float[9] (0.02853226260337099, 0.06723453549491201, 0.1240093299792275, 0.1790438646174162, 0.2023600146101466, 0.1790438646174162, 0.1240093299792275, 0.06723453549491201, 0.02853226260337099);
+const float[13] ker13 = float[13](0.036262,0.051046,0.067526,0.083942,0.098059,	0.107644,0.111043,0.107644,0.098059,0.083942,0.067526,0.051046,0.036262);
+
+/*
+vec3 SpatialUpscale(sampler2D UpscaleTexture, vec3 BaseNormal, float BaseLinearDepth)
+{
+	ivec2 TileCoord = ivec2(gl_FragCoord.xy) % 2;
+	int DitherSet = TileCoord.x + 2 * TileCoord.y;
+	vec2 TexelSize = 1.0f / textureSize(UpscaleTexture, 0);
+	vec3 TotalSample = vec3(0.0f);
+	float TotalWeight = 0.0f;
+
+	for(int i = 0; i < 7; i++) 
+	{
+		int x = xOffsets[i][DitherSet];
+		int y = yOffsets[i][DitherSet];
+		if(ivec2(x,y) == ivec2(69, 69)) continue;
+
+		vec2 SampleCoord = v_TexCoords + vec2(x,y) * TexelSize;
+		float NonLinearDepthAt = texture(u_DepthTexture, SampleCoord).x;
+		float LinearDepthAt = linearizeDepth(NonLinearDepthAt);
+
+		vec3 NormalAt = texture(u_NormalTexture, v_TexCoords).xyz;
+		//float DepthWeight = exp(-abs(BaseLinearDepth - LinearDepthAt));
+		float DepthWeight = 1.0f / abs(BaseLinearDepth - LinearDepthAt);
+		float NormalWeight = max(dot(BaseNormal, NormalAt), 0.0f);
+		//DepthWeight = pow(DepthWeight, 32.0f);
+		NormalWeight = pow(NormalWeight, 128.0f);
+		
+		float BaseWeight = ker9[x + 4] * ker9[y + 4];
+		BaseWeight = BaseWeight * clamp(DepthWeight * NormalWeight, 1e-6, 1.5f + 1e-4);
+		BaseWeight = DepthWeight * NormalWeight;;
+		BaseWeight += 0.02f;
+
+		vec3 SampleAt = texture(UpscaleTexture, SampleCoord).xyz;
+		TotalSample += SampleAt * BaseWeight;
+		TotalWeight += BaseWeight;
+	}
+
+	TotalSample /= TotalWeight;
+	return TotalSample;
+}*/
+
+vec3 SpatialUpscale(sampler2D UpscaleTexture, vec3 BaseNormal, float BaseLinearDepth)
+{
+	vec3 TotalSample = vec3(0.0f);
+	float TotalWeight = 0.0f;
+
+	vec2 TexelSize = 1.0f / textureSize(UpscaleTexture, 0);
+	const float AtrousWeights[5] = float[5] (0.0625, 0.25, 0.375, 0.25, 0.0625);
+
+	for (int x = -2 ; x <= 2 ; x++) {
+		for (int y = -2 ; y <= 2 ; y++) {
+			
+			vec2 SampleCoord = v_TexCoords + vec2(x,y) * TexelSize;
+			float LinearDepthAt = linearizeDepth(texture(u_DepthTexture, SampleCoord).x);
+			vec3 NormalAt = texture(u_NormalRaw, SampleCoord.xy).xyz;
+
+			float DepthWeight = 1.0f / (abs(LinearDepthAt - BaseLinearDepth) + 0.001f);
+			DepthWeight = pow(DepthWeight, 12.0f);
+
+			float NormalWeight = pow(abs(dot(NormalAt, BaseNormal)), 8.0f);
+
+			float Kernel = AtrousWeights[x + 2] * AtrousWeights[y + 2];
+			float Weight = Kernel * NormalWeight * DepthWeight;
+			Weight = max(Weight, 0.01f);
+			TotalSample += texture(UpscaleTexture, SampleCoord).xyz * Weight;
+			TotalWeight += Weight;
+		}
+	}
+
+	return TotalSample / TotalWeight;
+}
+
 void main() 
 {	
 	float depth = texture(u_DepthTexture, v_TexCoords).r;
@@ -90,20 +196,37 @@ void main()
 		return;
 	}
 
+	float LinearDepth = linearizeDepth(depth);
+
+	// Samples : 
 	vec3 WorldPosition = WorldPosFromDepth(depth,v_TexCoords);
 	vec3 Normal = texture(u_NormalTexture, v_TexCoords).xyz;
+	vec3 NormalRaw = texture(u_NormalRaw, v_TexCoords).xyz;
 	vec3 Albedo = texture(u_AlbedoTexture, v_TexCoords).xyz;
 	vec2 RoughnessMetalness = texture(u_PBRTexture, v_TexCoords).xy;
+	
+	// Direct :
 	vec3 NormalizedSunDir = normalize(u_LightDirection);
 	float DirectionalShadow = CalculateSunShadow(WorldPosition, Normal);
 	vec3 DirectLighting = CalculateDirectionalLight(WorldPosition, normalize(u_LightDirection), SUN_COLOR, Albedo, Normal, RoughnessMetalness, DirectionalShadow).xyz;
-	vec3 IndirectDiffuse = texture(u_IndirectDiffuse, v_TexCoords).xyz;
+	
+	// Indirect :
+	//vec3 IndirectDiffuse = texture(u_IndirectDiffuse, v_TexCoords).xyz;
+	vec3 IndirectDiffuse = SpatialUpscale(u_IndirectDiffuse, Normal, LinearDepth);
+
+	// VXAO 
 	float VXAO = 1.0f - texture(u_VXAO, v_TexCoords).r;
 	VXAO = VXAO * VXAO;
+
+	// Combine 
 	vec3 AmbientTerm = ((IndirectDiffuse) * Albedo);
 	o_Color = DirectLighting + AmbientTerm;
+	
+	// Temp :
+
+
 	//o_Color = IndirectDiffuse;
-//o_Color = pow(IndirectDiffuse, vec3(3.0f)) * 0.05f ;
+	//o_Color = pow(IndirectDiffuse, vec3(3.0f)) * 0.05f ;
 	//o_Color = pow(IndirectDiffuse / 500.0f, vec3(2.2f));
 }
 

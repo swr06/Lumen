@@ -127,16 +127,17 @@ void main()
 		float PreviousDepth = texture(u_PreviousDepthTexture, SampleCoord).x;
 		vec3 PreviousPositionAt = WorldPosFromDepthPrev(PreviousDepth, SampleCoord);
 		vec3 PreviousNormalAt = SampleNormal(u_PreviousNormalTexture, SampleCoord).xyz;
-		vec3 PositionDifference = abs(BasePosition.xyz - PreviousPositionAt.xyz);
+		vec3 PositionDifference = PreviousPositionAt.xyz - BasePosition.xyz;
 		float PositionError = dot(PositionDifference, PositionDifference);
 		float CurrentWeight = Weights[i];
 
-		vec3 NormalDifference = abs(BaseNormal - PreviousNormalAt);
-		float NormalError = dot(NormalDifference, NormalDifference);
-
 		// todo : adjust this because this causes a fuckton of problems!
-		if (PositionError < 2.2f && NormalError < 0.075f)
+		const float PositionTolerance = 4.0f;
+		const float PositionToleranceReal = pow(PositionTolerance, 1.5f);
+		if (PositionError < PositionToleranceReal)
 		{
+			float NormalWeight = pow(abs(dot(BaseNormal, PreviousNormalAt)), 4.0f);
+			CurrentWeight = CurrentWeight * NormalWeight;
 			vec3 PreviousUtility = texture(u_PreviousUtility, SampleCoord).xyz;
 			vec3 PreviousLighting = texture(u_PreviousLighting, SampleCoord).xyz;
 
