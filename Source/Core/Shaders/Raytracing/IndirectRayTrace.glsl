@@ -156,7 +156,8 @@ vec3 ComputeSkymapRadiance(int Samples, vec3 Normal)
 // Gets the shading for a single ray 
 vec3 GetBlockRayColor(in Ray r, out vec3 pos, inout vec3 out_n, inout float T, float BaseDepth, vec3 BaseNormal, int Bounce)
 {
-	const bool SSGI_FALLBACK = true;
+	const bool SSGI_FALLBACK = false;
+	const bool SKYMAP_FALLBACK = false;
 	vec4 data = vec4(0.0f);
 	
 	T = VoxelTraversalDF(r.Origin, r.Direction, out_n, data, MAX_VOXEL_DIST);
@@ -173,10 +174,14 @@ vec3 GetBlockRayColor(in Ray r, out vec3 pos, inout vec3 out_n, inout float T, f
 		// Calculate SSGI if no intersection :
 
 		if (Bounce == 0 && SSGI_FALLBACK) {
-			return RayTraceSSRTRay(BaseDepth, BaseNormal, true, true, false).xyz * 2.0f; // /2 after the loop, *2 here to preserve energy
+			return RayTraceSSRTRay(BaseDepth, BaseNormal, false, false, false).xyz * 2.0f; // /2 after the loop, *2 here to preserve energy
 		} 
 
-		return ComputeSkymapRadiance(4, BaseNormal);
+		if (SKYMAP_FALLBACK) {
+			 return ComputeSkymapRadiance(4, BaseNormal);
+		}
+
+		return vec3(0.0f);
 	}
 
 	return vec3(0.0f);
@@ -230,6 +235,12 @@ float linearizeDepth(float depth)
 	return (2.0 * u_zNear) / (u_zFar + u_zNear - depth * (u_zFar - u_zNear));
 }
 
+void FixOutput() {
+	if (isnan(o_IndirectDiffuse.x)||isnan(o_IndirectDiffuse.y)||isnan(o_IndirectDiffuse.z)) {
+		o_IndirectDiffuse = vec3(0.0f);
+	}
+}
+
 void main() 
 {
 	o_VXAO = 0.0f;
@@ -242,23 +253,27 @@ void main()
 	vec3 ActualWorldPosition = WorldPosFromDepth(Depth, v_TexCoords).xyz;
 	vec3 Normal = texture(u_NormalTexture, v_TexCoords).xyz;
 
+	if (Depth > 0.99999f) {
+		o_IndirectDiffuse += vec3(0.0f);
+		FixOutput();
+		return;
+	}
+
+	vec3 MinAmbient = vec3(150.0f, 150.0f, 255.0f) / 255.0f;
+	MinAmbient = MinAmbient * 0.01f;
 
 	const bool DEBUG_SSGI = false;
+	o_IndirectDiffuse = vec3(MinAmbient);
 
 	if (DEBUG_SSGI) { 
 
 		vec3 ScreenSpaceIndirectDiffuse = vec3(0.0f);
 		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false, false, false).xyz;
-		o_IndirectDiffuse = ScreenSpaceIndirectDiffuse;
-		o_IndirectDiffuse = abs(o_IndirectDiffuse);
-
+		o_IndirectDiffuse += ScreenSpaceIndirectDiffuse;
+		FixOutput();
 		return;
 
 	}
-
-	const vec3 MinimumAmbient = vec3(0.0420, 0.0420, 0.069f);
-	//o_IndirectDiffuse += MinimumAmbient*0.8f;
-	o_IndirectDiffuse = vec3(0.0f);
 
 	//// Convert to voxel space : 
 	vec3 PositionDelta = u_ViewerPosition - u_VoxelizationPosition;
@@ -286,22 +301,15 @@ void main()
 	
 	
 	ivec3 VoxelVolumeSize = ivec3(textureSize(u_VoxelVolume, 0));
-	
-	if (Depth > 0.99999f) {
-		o_IndirectDiffuse += vec3(0.0f);
-		return;
-	}
-
 	vec3 VoxelPositionNormalized = VoxelPosition / 256.0f;
-	
 	if (VoxelPositionNormalized.x < 0.0f + 0.01f || VoxelPositionNormalized.x > 1.0f - 0.01f ||
 		VoxelPositionNormalized.y < 0.0f + 0.01f || VoxelPositionNormalized.y > 1.0f - 0.01f ||
 		VoxelPositionNormalized.z < 0.0f + 0.01f || VoxelPositionNormalized.z > 1.0f - 0.01f)
 	{
 		vec3 ScreenSpaceIndirectDiffuse = vec3(0.0f);
-		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false, false, true).xyz;
+		ScreenSpaceIndirectDiffuse = RayTraceSSRTRay(Depth, Normal, false, false, false).xyz;
+		o_IndirectDiffuse = MinAmbient*3.0f;
 		o_IndirectDiffuse += ScreenSpaceIndirectDiffuse;
-		o_IndirectDiffuse = abs(o_IndirectDiffuse);
 		return;
 	}
 	
@@ -310,8 +318,7 @@ void main()
 	IndirectVXGIDiffuse = CalculateDiffuse(VoxelPosition.xyz, Normal.xyz, SampleRayDirection, Depth, Normal).xyzw;
 	o_IndirectDiffuse += IndirectVXGIDiffuse.xyz;
 	o_VXAO = IndirectVXGIDiffuse.w;
-	o_IndirectDiffuse = abs(o_IndirectDiffuse);
-
+	FixOutput();
 }
 
 vec2 hash2() 
@@ -494,39 +501,41 @@ vec3 RayTraceSSRTRay(float Depth, vec3 Normal, bool ComputeSkyRadiance, bool Red
 {
 	vec2 UV = ScreenSpaceRayTrace(Normal, Depth, v_TexCoords, ReducedSteps);
 	vec3 BounceRadiance = vec3(0.0f);
+	float DepthAt_First = texture(u_DepthTexture, UV.xy).x;
 
-	if (IsInScreenSpace(vec3(UV, 0.01f)))
+	if (IsInScreenSpace(vec3(UV, 0.01f)) && DepthAt_First < 0.999995f)
 	{
 		// First Bounce : 
 		// Compute lighting, without reusing previous frames, might be changed in the future 
 		// to improve performance
 
-		float DepthAt_First = texture(u_DepthTexture, UV.xy).x;
 		vec3 WorldPositionAt_First = WorldPosFromDepth(DepthAt_First, UV.xy);
 		vec3 NormalAt_First = texture(u_NormalTexture, UV.xy).xyz;
 		float Shadow_First = 1.0f-ComputeDirectionalShadow(WorldPositionAt_First);
-		vec3 AlbedoAt_First = texture(u_AlbedoTexture, UV.xy).xyz;
-		BounceRadiance += clamp(CalculateDirectionalLight(WorldPositionAt_First, u_LightDirection, vec3(2.0f), AlbedoAt_First, NormalAt_First, Shadow_First), 0.0f, 5.0f);
+		vec3 AlbedoAt_First = pow(texture(u_AlbedoTexture, UV.xy).xyz, vec3(1.0f/2.2f));
+		BounceRadiance += clamp(CalculateDirectionalLight(WorldPositionAt_First, u_LightDirection, vec3(3.0f), AlbedoAt_First, NormalAt_First, Shadow_First), 0.0f, 5.0f);
 
 		// Second Bounce
 		// Ray trace from first hit point and first normal
 
 		vec2 SecondBounceUV = ScreenSpaceRayTrace(NormalAt_First, DepthAt_First, UV, ReducedSteps);
-		if (IsInScreenSpace(vec3(SecondBounceUV, 0.01f))) 
+		float DepthAt_Second = texture(u_DepthTexture, SecondBounceUV.xy).x;
+
+		if (IsInScreenSpace(vec3(SecondBounceUV, 0.01f)) && DepthAt_Second < 0.999995f) 
 		{
 			// Compute lighting : 
-			float DepthAt_Second = texture(u_DepthTexture, SecondBounceUV.xy).x;
 			vec3 WorldPositionAt_Second = WorldPosFromDepth(DepthAt_Second, SecondBounceUV.xy);
 			vec3 NormalAt_Second = texture(u_NormalTexture, SecondBounceUV.xy).xyz;
 			float Shadow_Second = 1.0f-ComputeDirectionalShadow(WorldPositionAt_Second);
-			vec3 AlbedoAt_Second = texture(u_AlbedoTexture, SecondBounceUV.xy).xyz;
-			BounceRadiance += clamp(CalculateDirectionalLight(WorldPositionAt_Second, u_LightDirection, vec3(2.0f), AlbedoAt_Second, NormalAt_Second, Shadow_Second), 0.0f, 5.0f);
+			vec3 AlbedoAt_Second = pow(texture(u_AlbedoTexture, SecondBounceUV.xy).xyz, vec3(1.0f/2.2f));
+			BounceRadiance += clamp(CalculateDirectionalLight(WorldPositionAt_Second, u_LightDirection, vec3(3.0f), AlbedoAt_Second, NormalAt_Second, Shadow_Second), 0.0f, 5.0f);
 		}
 	}
 
 	else {
+		return vec3(0.0f);
 		BounceRadiance = vec3(0.0f);
-
+	
 		if (ComputeSkyRadiance) {
 			float m = DarkenSky ? 1.0f : 1.8250f;
 			BounceRadiance = ComputeSkymapRadiance(12, Normal) * m;  // multiplying it because the result is then divided by 2
@@ -580,73 +589,142 @@ bool IsInScreenSpace(in vec3 p)
 }
 
 
+//vec2 ScreenSpaceRayTrace(vec3 Normal, float Depth, vec2 TexCoords, bool ReducedSteps)
+//{
+//    //vec3 ViewSpaceNormal = vec3(u_View * vec4(Normal, 0.0f));
+//    //vec3 ViewSpaceViewDirection = normalize(ViewSpacePosition);
+//	
+//	const int MAX_REFINEMENTS = 5;
+//
+//	vec3 CosineDirection = cosWeightedRandomHemisphereDirection(Normal);
+//    vec3 LambertDirection = vec3(u_View * vec4(CosineDirection, 0.0f));
+//	LambertDirection = normalize(LambertDirection);
+//
+//	float InitialStepAmount = 1.0 - clamp(0.1f / 100.0, 0.0, 0.99);
+//    vec3 ViewSpacePosition = ViewPosFromDepth(Depth, TexCoords);
+//    vec3 ViewSpaceVector = InitialStepAmount * LambertDirection;
+//	vec3 PreviousPosition = ViewSpacePosition;
+//    vec3 ViewSpaceVectorPosition = PreviousPosition + ViewSpaceVector;
+//    vec3 CurrentPosition = ViewSpaceToScreenSpace(ViewSpaceVectorPosition);
+//
+//	int NumRefinements = 0;
+//	vec2 FinalUV = vec2(-1.0f);
+//	float finalSampleDepth = 0.0;
+//
+//	int StepCount = 55 - (20 * int(ReducedSteps));
+//
+//    for (int i = 0; i < StepCount; i++)
+//    {
+//        if(-ViewSpaceVectorPosition.z > u_zFar * 1.4f || -ViewSpaceVectorPosition.z < 0.0f)
+//        {
+//		    break;
+//		}
+//
+//        vec2 SamplePos = CurrentPosition.xy;
+//        float SampleDepth = ScreenSpaceToWorldSpace(SamplePos).z;
+//        float CurrentDepth = ViewSpaceVectorPosition.z;
+//        float diff = SampleDepth - CurrentDepth;
+//        float error = length(ViewSpaceVector / pow(2.0f, NumRefinements));
+//
+//        if(diff >= 0 && diff <= error * 2.0f && NumRefinements <= MAX_REFINEMENTS)
+//        {
+//        	ViewSpaceVectorPosition -= ViewSpaceVector / pow(2.0f, NumRefinements);
+//        	NumRefinements++;
+//		}
+//
+//		else if (diff >= 0 && diff <= error * 4.0f && NumRefinements > MAX_REFINEMENTS)
+//		{
+//			FinalUV = SamplePos;
+//			finalSampleDepth = SampleDepth;
+//			break;
+//		}
+//
+//        ViewSpaceVectorPosition += ViewSpaceVector / pow(2.0f, NumRefinements);
+//
+//        if (i > 1)
+//        {
+//            ViewSpaceVector *= 1.375f; // increase the vector's length progressively 
+//        }
+//
+//		CurrentPosition = ViewSpaceToScreenSpace(ViewSpaceVectorPosition);
+//
+//		if (!IsInScreenSpace(CurrentPosition)) 
+//        {
+//            break;
+//        }
+//    }
+//
+//    return FinalUV;
+//}
+
+
+
 vec2 ScreenSpaceRayTrace(vec3 Normal, float Depth, vec2 TexCoords, bool ReducedSteps)
 {
-    //vec3 ViewSpaceNormal = vec3(u_View * vec4(Normal, 0.0f));
-    //vec3 ViewSpaceViewDirection = normalize(ViewSpacePosition);
-	
-	const int MAX_REFINEMENTS = 5;
-
 	vec3 CosineDirection = cosWeightedRandomHemisphereDirection(Normal);
     vec3 LambertDirection = vec3(u_View * vec4(CosineDirection, 0.0f));
 	LambertDirection = normalize(LambertDirection);
-
 	float InitialStepAmount = 1.0 - clamp(0.1f / 100.0, 0.0, 0.99);
-    vec3 ViewSpacePosition = ViewPosFromDepth(Depth, TexCoords);
-    vec3 ViewSpaceVector = InitialStepAmount * LambertDirection;
-	vec3 PreviousPosition = ViewSpacePosition;
-    vec3 ViewSpaceVectorPosition = PreviousPosition + ViewSpaceVector;
-    vec3 CurrentPosition = ViewSpaceToScreenSpace(ViewSpaceVectorPosition);
+    vec3 ViewSpacePosition = WorldPosFromDepth(Depth, TexCoords) + Normal * 0.025f;
+	ViewSpacePosition = vec3(u_View * vec4(ViewSpacePosition, 1.0f));
+	vec3 ScreenSpacePosition = ViewSpaceToScreenSpace(ViewSpacePosition);
+	int Steps = 50;
+    vec3 ScreenSpaceDirection = normalize(ViewSpaceToScreenSpace(ViewSpacePosition + LambertDirection) - ScreenSpacePosition) * (1.25f / float(Steps));
+    vec3 FinalPosition = vec3(0.0f);
+    float Jitter = Bayer32(gl_FragCoord.xy);
+    FinalPosition = ScreenSpacePosition + ScreenSpaceDirection * Jitter;
 
-	int NumRefinements = 0;
-	vec2 FinalUV = vec2(-1.0f);
-	float finalSampleDepth = 0.0;
+    for(int i = 0; i < Steps; i++) 
+	{
+        FinalPosition += ScreenSpaceDirection;
 
-	int StepCount = 55 - (20 * int(ReducedSteps));
-
-    for (int i = 0; i < StepCount; i++)
-    {
-        if(-ViewSpaceVectorPosition.z > u_zFar * 1.4f || -ViewSpaceVectorPosition.z < 0.0f)
-        {
-		    break;
-		}
-
-        vec2 SamplePos = CurrentPosition.xy;
-        float SampleDepth = ScreenSpaceToWorldSpace(SamplePos).z;
-        float CurrentDepth = ViewSpaceVectorPosition.z;
-        float diff = SampleDepth - CurrentDepth;
-        float error = length(ViewSpaceVector / pow(2.0f, NumRefinements));
-
-        if(diff >= 0 && diff <= error * 2.0f && NumRefinements <= MAX_REFINEMENTS)
-        {
-        	ViewSpaceVectorPosition -= ViewSpaceVector / pow(2.0f, NumRefinements);
-        	NumRefinements++;
-		}
-
-		else if (diff >= 0 && diff <= error * 4.0f && NumRefinements > MAX_REFINEMENTS)
+        if (IsInScreenSpace(vec3(FinalPosition.xy, 0.01f)) == false || FinalPosition.z > 0.999999f)
 		{
-			FinalUV = SamplePos;
-			finalSampleDepth = SampleDepth;
 			break;
 		}
 
-        ViewSpaceVectorPosition += ViewSpaceVector / pow(2.0f, NumRefinements);
+        float DepthAt = texture(u_DepthTexture, FinalPosition.xy).r;
 
-        if (i > 1)
-        {
-            ViewSpaceVector *= 1.375f; // increase the vector's length progressively 
-        }
+        if(FinalPosition.z > DepthAt) 
+		{
+			for(int i = 0; i < 5; i++) 
+			{
+				float depth = texture(u_DepthTexture, FinalPosition.xy).r;
+				float depthDelta = depth - FinalPosition.z;
 
-		CurrentPosition = ViewSpaceToScreenSpace(ViewSpaceVectorPosition);
+				if(depthDelta > 0.0) 
+				{ 
+					FinalPosition += ScreenSpaceDirection;
+				}
 
-		if (!IsInScreenSpace(CurrentPosition)) 
-        {
-            break;
+				else
+				{	
+					FinalPosition -= ScreenSpaceDirection;
+				}
+
+				if (FinalPosition.z > 0.999999f) { return vec2(-1.0f); }
+
+				ScreenSpaceDirection *= 0.7f;
+			}
+
+			return FinalPosition.xy;
         }
     }
 
-    return FinalUV;
+    return vec2(-1.0f);
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ///// 

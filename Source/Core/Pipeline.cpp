@@ -191,6 +191,7 @@ void Lumen::StartPipeline()
 	GLClasses::DepthBuffer Shadowmap(3584, 3584);
 	GLClasses::Texture BlueNoise;
 	GLClasses::CubeTextureMap Skymap;
+	GLClasses::CubeTextureMap SkymapDiffuse;
 
 	VoxelVolume MainVoxelVolume;
 
@@ -204,6 +205,19 @@ void Lumen::StartPipeline()
 		"Res/Skymap/back.bmp"
 		}, true
 	);
+
+
+	SkymapDiffuse.CreateCubeTextureMap(
+		{
+		"Res/SkymapDiffuseIrradiance/right.bmp",
+		"Res/SkymapDiffuseIrradiance/left.bmp",
+		"Res/SkymapDiffuseIrradiance/top.bmp",
+		"Res/SkymapDiffuseIrradiance/bottom.bmp",
+		"Res/SkymapDiffuseIrradiance/front.bmp",
+		"Res/SkymapDiffuseIrradiance/back.bmp"
+		}, true
+	);
+
 
 	BlueNoise.CreateTexture("Res/blue_noise.png", false, false);
 

@@ -214,10 +214,6 @@ void main()
 	//vec3 IndirectDiffuse = texture(u_IndirectDiffuse, v_TexCoords).xyz;
 	vec3 IndirectDiffuse = SpatialUpscale(u_IndirectDiffuse, Normal, LinearDepth);
 
-	// VXAO 
-	float VXAO = 1.0f - texture(u_VXAO, v_TexCoords).r;
-	VXAO = VXAO * VXAO;
-
 	// Combine 
 	vec3 AmbientTerm = ((IndirectDiffuse) * Albedo);
 	o_Color = DirectLighting + AmbientTerm;

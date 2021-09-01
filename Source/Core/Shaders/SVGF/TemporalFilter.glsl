@@ -150,13 +150,12 @@ void main()
 		}
 	}
 
-	if (TotalWeight > 0.0f) { 
-		SumLighting /= TotalWeight;
-		SumMoment /= TotalWeight;
-		SumSPP /= TotalWeight;
-		SumLuminosity /= TotalWeight;
-		SumAO /= TotalWeight;
-	}
+	TotalWeight = max(TotalWeight, 0.001f);
+	SumLighting /= TotalWeight;
+	SumMoment /= TotalWeight;
+	SumSPP /= TotalWeight;
+	SumLuminosity /= TotalWeight;
+	SumAO /= TotalWeight;
 
 	const bool AccumulateAll = false;
 
@@ -176,6 +175,10 @@ void main()
 	o_Lighting = mix(SumLighting, BaseLighting, BlendFactor);
 	o_AO = mix(SumAO, BaseAO, BlendFactor);
 	o_Utility = vec3(UtilitySPP, UtilityMoment, StoreLuma);
+
+	if (isnan(o_Lighting.x) || isnan(o_Lighting.y) || isnan(o_Lighting.z)) {
+		o_Lighting = vec3(0.0f);
+	}
 }
 
 

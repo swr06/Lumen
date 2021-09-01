@@ -118,7 +118,6 @@ void main()
 
 	float BaseDepth = texture(u_DepthTexture, v_TexCoords).x;
 	float BaseLinearDepth = linearizeDepth(BaseDepth);
-	vec3 BasePosition = WorldPosFromDepth(BaseDepth, v_TexCoords);
 	vec3 BaseNormal = texture(u_NormalTexture, v_TexCoords).xyz;
 	vec3 BaseLighting = texture(u_Lighting, v_TexCoords).xyz;
 	float BaseLuminance = LuminanceAccurate(BaseLighting);
@@ -148,12 +147,11 @@ void main()
 
 			float SampleDepth = texture(u_DepthTexture, SampleCoord).x;
 			float SampleLinearDepth = linearizeDepth(SampleDepth);
-			vec3 SamplePosition = WorldPosFromDepth(SampleDepth, SampleCoord).xyz;
 
 			// Weights : 
-			vec3 PositionDifference = abs(SamplePosition.xyz - BasePosition.xyz);
-            float DistSqr = dot(PositionDifference, PositionDifference);
-			float PositionWeight = abs(sqrt(DistSqr)) / (PhiPosition * length(vec2(x,y)));
+			float PositionDifference = abs(SampleLinearDepth - BaseLinearDepth);
+			float PositionWeight = 1.0f / (PositionDifference + 0.01f);
+			PositionWeight = pow(PositionWeight, 1/1000.0f);
 
 			// Samples :
 			vec3 SampleLighting = texture(u_Lighting, SampleCoord).xyz;
@@ -185,9 +183,9 @@ void main()
 		}
 	}
 	
-	TotalLighting /= TotalWeight;
-	TotalVariance /= sqr(TotalWeight);
-	TotalAO /= TotalAOWeight;
+	TotalLighting /= max(TotalWeight, 0.001f);;
+	TotalVariance /= max(sqr(TotalWeight), 0.001f);
+	TotalAO /= max(TotalAOWeight, 0.001f);
 	
 	// Output : 
 	o_Lighting = TotalLighting;
